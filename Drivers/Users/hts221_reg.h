@@ -22,6 +22,9 @@
 #ifndef HTS221_REGS_H
 #define HTS221_REGS_H
 
+#define PROPERTY_DISABLE                (0U)
+#define PROPERTY_ENABLE                 (1U)
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -98,8 +101,6 @@ typedef struct
 #endif /* DRV_BYTE_ORDER */
 } bitwise_t;
 
-#define PROPERTY_DISABLE                (0U)
-#define PROPERTY_ENABLE                 (1U)
 
 /** @addtogroup  Interfaces_Functions
   * @brief       This section provide a set of functions used to read and

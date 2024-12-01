@@ -1,9 +1,9 @@
-/* USER CODE BEGIN Header */
+
 /**
-  **************************
+  **********
   * @file           : main.c
   * @brief          : Main program body
-  **************************
+  **********
   * @attention
   *
   * Copyright (c) 2024 STMicroelectronics.
@@ -13,7 +13,7 @@
   * in the root directory of this software component.
   * If no LICENSE file comes with this software, it is provided AS-IS.
   *
-  **************************
+  **********
   */
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
@@ -41,12 +41,13 @@
 #include <string.h>
 
 #include "hts221_reg.h"
+#include "pression.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
 
-//*****************************definition du bus I2C1********************
+//**********definition du bus I2C1*******
 
 #define SENSOR_BUS hi2c1
 
@@ -68,14 +69,14 @@
 /* USER CODE BEGIN PV */
 /* Private variables ---------------------------------------------------------*/
 
-//*************************************************************************************
+//*****************************
 static int16_t data_raw_humidity;
 static int16_t data_raw_temperature;
 static float humidity_perc;
 static float temperature_degC;
 static uint8_t whoamI;
 static uint8_t tx_buffer[1000];
-//*************************************************************************************
+//*****************************
 
 
 /* USER CODE END PV */
@@ -87,7 +88,7 @@ void SystemClock_Config(void);
 
 
 
-//******************************************************************************
+//**************************
 static int32_t platform_write(void *handle, uint8_t reg, const uint8_t *bufp,
                               uint16_t len);
 static int32_t platform_read(void *handle, uint8_t reg, uint8_t *bufp,
@@ -106,7 +107,7 @@ float linear_interpolation(lin_t *lin, int16_t x)
                                      (lin->x0 * lin->y1)))
          / (lin->x1 - lin->x0);
 }
-//*********************************************************************************
+//***************************
 
 
 
@@ -125,13 +126,13 @@ int main(void)
 {
 
   /* USER CODE BEGIN 1 */
-//************************************************************************************************
+//********************************
 	stmdev_ctx_t dev_ctx;
 	  dev_ctx.write_reg = platform_write;
 	  dev_ctx.read_reg = platform_read;
 	  dev_ctx.mdelay = platform_delay;
 	  dev_ctx.handle = &SENSOR_BUS;
-	  //*********************************************************************************
+	  //***************************
 
 
 
@@ -191,7 +192,7 @@ int main(void)
 
     //Temperature
       /* Check device ID */
-      //******************************************************************************
+      //**************************
         whoamI = 0;
         hts221_device_id_get(&dev_ctx, &whoamI);
 
@@ -215,7 +216,7 @@ int main(void)
           hts221_data_rate_set(&dev_ctx, HTS221_ODR_1Hz);
           /* Device power on */
           hts221_power_on_set(&dev_ctx, PROPERTY_ENABLE);
-          //*********************************************************************************
+          //***************************
 
 
 
@@ -223,7 +224,7 @@ int main(void)
 
   HAL_GPIO_WritePin(user_led_GPIO_Port, user_led_Pin, GPIO_PIN_RESET);
 
-
+  static float t;
   while (1)
   {
 
@@ -231,7 +232,11 @@ int main(void)
 	     hts221_reg_t reg;
 	     hts221_status_get(&dev_ctx, &reg.status_reg);
 
-	     //***************************************************************************************
+
+	      t = lps22hh_read_data_polling();
+	      snprintf((char *)tx_buffer, sizeof(tx_buffer), "pressure [hPa]:%6.2f\r\n", t);
+
+	     //*****************************
 	     if (reg.status_reg.h_da) {
 	       /* Read humidity data */
 	       memset(&data_raw_humidity, 0x00, sizeof(int16_t));
@@ -245,7 +250,8 @@ int main(void)
 	       if (humidity_perc > 100) {
 	         humidity_perc = 100;
 	       }
-	       printf("****************\r\n");
+	       printf("******\r\n");
+	       printf((char *)tx_buffer);
 	       snprintf((char *)tx_buffer, sizeof(tx_buffer), "Humidity [%%]:%3.2f\r\n", humidity_perc);
 	       printf((char *)tx_buffer);
 	     }
@@ -258,9 +264,9 @@ int main(void)
 	                                               data_raw_temperature);
 	       snprintf((char *)tx_buffer, sizeof(tx_buffer), "Temperature [degC]:%6.2f\r\n",
 	               temperature_degC );
-	       printf((char *)tx_buffer);
+	       printf((char *) tx_buffer);
 	     }
-	     //****************************************************************************
+	     //**************************
 	     HAL_GPIO_TogglePin(user_led_GPIO_Port,user_led_Pin);
 
 	   	  HAL_Delay(250);

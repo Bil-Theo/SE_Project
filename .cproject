@@ -54,6 +54,7 @@
 									<listOptionValue builtIn="false" value="../Utilities/Fonts"/>
 									<listOptionValue builtIn="false" value="../Drivers/Users"/>
 									<listOptionValue builtIn="false" value="../Drivers/Modules"/>
+									<listOptionValue builtIn="false" value="../Drivers/Templates"/>
 								</option>
 								<inputType id="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.c.compiler.input.c.296523179" superClass="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.c.compiler.input.c"/>
 							</tool>
