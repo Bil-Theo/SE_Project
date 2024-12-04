@@ -68,10 +68,10 @@ void Error_Handler(void);
 #define poussoir_btn_1_Pin GPIO_PIN_8
 #define poussoir_btn_1_GPIO_Port GPIOF
 #define poussoir_btn_1_EXTI_IRQn EXTI9_5_IRQn
-#define red_led_Pin GPIO_PIN_9
+#define blue_led_Pin GPIO_PIN_9
+#define blue_led_GPIO_Port GPIOH
+#define red_led_Pin GPIO_PIN_11
 #define red_led_GPIO_Port GPIOH
-#define bleu_led_Pin GPIO_PIN_11
-#define bleu_led_GPIO_Port GPIOH
 #define green_led_Pin GPIO_PIN_10
 #define green_led_GPIO_Port GPIOH
 

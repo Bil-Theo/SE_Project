@@ -73,11 +73,13 @@
 
 extern volatile float pressure_hPa;
 extern volatile hum_temp_t grandeur;
-volatile uint8_t Flag_tim4 = 0, Flag_tim7 = 0;
-static uint8_t tx_buffer[1000];
+volatile uint8_t Flag_tim4 = 0, Flag_tim7 = 0, Flag_btn = 0;
+static uint8_t tx_buffer[1000], state_Screen = 1;
+static uint16_t cmpt = 0;
 
 extern TIM_HandleTypeDef htim4;
 extern TIM_HandleTypeDef htim7;
+extern TIM_HandleTypeDef htim3;
 
 /* USER CODE END PV */
 
@@ -89,6 +91,7 @@ void DrawBlock(uint16_t x, uint16_t y, const char *title);
 void setDrawText(uint16_t x, uint16_t y, const char *value);
 void TouchScreen();
 void show_sensors();
+
 
 /* USER CODE END PFP */
 
@@ -136,6 +139,8 @@ int main(void)
   MX_TIM7_Init();
   /* USER CODE BEGIN 2 */
 
+  BSP_TS_Init(800, 400);
+
   if(start_sensor_hts221()== -1) printf("Device for sensor hts221 not found!");
   if(start_sensor_lps22hh() == -1) printf("Device for sensor lps22hh not found!");
 
@@ -156,21 +161,42 @@ int main(void)
   /* USER CODE BEGIN WHILE */
 
   HAL_TIM_Base_Init(&htim4) ;
+  HAL_TIM_Base_Init(&htim3) ;
+
   HAL_TIM_Base_Start_IT(&htim4);
   HAL_TIM_Base_Start_IT(&htim7);
+  HAL_TIM_Base_Start_IT(&htim3);
+
 
 
   HAL_GPIO_WritePin(user_led_GPIO_Port, user_led_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(red_led_GPIO_Port, red_led_Pin, GPIO_PIN_RESET);
+
 
   while (1)
   {
 	  if(Flag_tim4==1){
 		  show_sensors();
 		   Flag_tim4 = 0;
+		   state_Screen = 0;
+		   BSP_LCD_DisplayOff();
 	  }
 	  else if(Flag_tim7 == 1){
-		  HAL_GPIO_TogglePin(user_led_GPIO_Port,user_led_Pin);
+		  if(state_Screen){
+			  HAL_GPIO_TogglePin(user_led_GPIO_Port,user_led_Pin);
+			  HAL_GPIO_WritePin(red_led_GPIO_Port, red_led_Pin, GPIO_PIN_RESET);
+		  }
+		  else{
+			  HAL_GPIO_TogglePin(red_led_GPIO_Port, red_led_Pin);
+			  HAL_GPIO_WritePin(user_led_GPIO_Port, user_led_Pin, GPIO_PIN_RESET);
+		  }
 		  Flag_tim7 = 0;
+	  }
+	  else if(Flag_btn == 1){
+		  htim7.Instance->CNT = 0;
+		  BSP_LCD_DisplayOn();
+		  Flag_btn = 0;
+		  state_Screen = 1;
 	  }
 	  else{
 		  HAL_SuspendTick();
@@ -250,7 +276,29 @@ PUTCHAR_PROTOTYPE
 }
 
 void TouchScreen(){
-	BSP_TS_Init(800, 400);
+	TS_StateTypeDef ts = {0};                  // Zero-initialize the current state to ensure no uninitialized data
+	    static TS_StateTypeDef prev_state = {0};
+	    static uint8_t is_touching = 0;           // Track if a touch is currently active
+	    static uint32_t cmpt = 0;                 // Counter for clicks
+
+	    BSP_TS_GetState(&ts);
+
+	    if (ts.touchDetected) {
+	        // If a touch is detected and no touch was previously active
+	        if (!is_touching) {
+	            is_touching = 1;  // Mark as touching
+	            if (ts.touchX[0] < 200 && ts.touchY[0] < 200) {
+	                cmpt++;
+	                printf("Touche ecran ici %d \r\n", cmpt);
+	            }
+	        }
+	        // Update previous state
+	        prev_state.touchX[0] = ts.touchX[0];
+	        prev_state.touchY[0] = ts.touchY[0];
+	    } else {
+	        // If no touch is detected, reset the touch state
+	        is_touching = 0;
+	    }
 }
 
 void DrawBlock(uint16_t x, uint16_t y, const char *title) {

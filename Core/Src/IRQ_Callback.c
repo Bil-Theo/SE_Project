@@ -7,8 +7,8 @@
 
 #include "stm32f7xx_hal.h"
 
-extern volatile uint8_t Flag_tim4, Flag_tim7;
-
+extern volatile uint8_t Flag_tim4, Flag_tim7, Flag_btn;
+void TouchScreen();
 
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
@@ -17,4 +17,13 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 
     Flag_tim4 = (htim->Instance == TIM4);
     Flag_tim7 = (htim->Instance == TIM7);
+    if(htim->Instance == TIM3) TouchScreen();;
+}
+
+void HAL_GPIO_EXTI_Callback (uint16_t GPIO_Pin )
+{
+	UNUSED(GPIO_Pin) ;
+	Flag_btn = 1;
+
+	HAL_ResumeTick();
 }
