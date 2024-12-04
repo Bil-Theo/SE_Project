@@ -1,9 +1,9 @@
-
+/* USER CODE BEGIN Header */
 /**
-  **********
+  ******************************************************************************
   * @file           : main.c
   * @brief          : Main program body
-  **********
+  ******************************************************************************
   * @attention
   *
   * Copyright (c) 2024 STMicroelectronics.
@@ -13,7 +13,7 @@
   * in the root directory of this software component.
   * If no LICENSE file comes with this software, it is provided AS-IS.
   *
-  **********
+  ******************************************************************************
   */
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
@@ -52,6 +52,12 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
+#define BLOCK_WIDTH 200
+#define BLOCK_HEIGHT 100
+#define BLOCK_PADDING 20
+
+#define BUTTON_WIDTH_fl 100
+#define BUTTON_HEIGHT_fl 50
 
 /* USER CODE END PD */
 
@@ -67,6 +73,11 @@
 
 extern volatile float pressure_hPa;
 extern volatile hum_temp_t grandeur;
+volatile uint8_t Flag_tim4 = 0, Flag_tim7 = 0;
+static uint8_t tx_buffer[1000];
+
+extern TIM_HandleTypeDef htim4;
+extern TIM_HandleTypeDef htim7;
 
 /* USER CODE END PV */
 
@@ -74,13 +85,10 @@ extern volatile hum_temp_t grandeur;
 void SystemClock_Config(void);
 /* USER CODE BEGIN PFP */
 #define PUTCHAR_PROTOTYPE int __io_putchar(int ch)
-
-
-
-//**************************
-//***************************
-
-
+void DrawBlock(uint16_t x, uint16_t y, const char *title);
+void setDrawText(uint16_t x, uint16_t y, const char *value);
+void TouchScreen();
+void show_sensors();
 
 /* USER CODE END PFP */
 
@@ -97,12 +105,6 @@ int main(void)
 {
 
   /* USER CODE BEGIN 1 */
-//********************************
-
-	  //***************************
-
-
-
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
@@ -130,62 +132,53 @@ int main(void)
   MX_LTDC_Init();
   MX_TIM3_Init();
   MX_USART1_UART_Init();
+  MX_TIM4_Init();
+  MX_TIM7_Init();
   /* USER CODE BEGIN 2 */
 
+  if(start_sensor_hts221()== -1) printf("Device for sensor hts221 not found!");
+  if(start_sensor_lps22hh() == -1) printf("Device for sensor lps22hh not found!");
+
+  HAL_Init();
   BSP_LCD_Init();
   BSP_LCD_LayerDefaultInit(LTDC_ACTIVE_LAYER, SDRAM_DEVICE_ADDR);
-
-
-
-  // 2. Configuration de l'écran
-      BSP_LCD_LayerDefaultInit(LTDC_ACTIVE_LAYER, SDRAM_DEVICE_ADDR); // Initialisation par défaut du layer 0
-      BSP_LCD_SelectLayer(LTDC_ACTIVE_LAYER); // Sélection du layer actif
-      BSP_LCD_Clear(LCD_COLOR_WHITE); // Effacer l'écran avec une couleur blanche
-
-      // 3. Configuration des paramètres d'affichage
-      BSP_LCD_SetFont(&Font24); // Définir la police (Font24 est une police par défaut)
-      BSP_LCD_SetTextColor(LCD_COLOR_CYAN); // Couleur du texte en noir
-      BSP_LCD_SetBackColor(LCD_COLOR_WHITE); // Couleur de fond en blanc
-
-      // 4. Affichage du texte
-      BSP_LCD_DisplayStringAt(0, 50, (uint8_t *)"Hello Project", CENTER_MODE);
+  BSP_LCD_SelectLayer(LTDC_ACTIVE_LAYER);
+  BSP_LCD_Clear(LCD_COLOR_WHITE);
+  // Dessiner les trois blocs
+	DrawBlock(20, 20, "Temperature");
+	DrawBlock(20 + BLOCK_WIDTH + BLOCK_PADDING, 20, "Humidite");
+	DrawBlock(20, 20 + BLOCK_HEIGHT + BLOCK_PADDING, "Pression");
+	show_sensors();
 
   /* USER CODE END 2 */
+
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
 
+  HAL_TIM_Base_Init(&htim4) ;
+  HAL_TIM_Base_Start_IT(&htim4);
+  HAL_TIM_Base_Start_IT(&htim7);
 
-   if(start_sensor_hts221()== -1) printf("Device for sensor hts221 not found!");
-   if(start_sensor_lps22hh() == -1) printf("Device for sensor lps22hh not found!");
 
   HAL_GPIO_WritePin(user_led_GPIO_Port, user_led_Pin, GPIO_PIN_RESET);
 
-  static uint8_t tx_buffer[1000];
   while (1)
   {
+	  if(Flag_tim4==1){
+		  show_sensors();
+		   Flag_tim4 = 0;
+	  }
+	  else if(Flag_tim7 == 1){
+		  HAL_GPIO_TogglePin(user_led_GPIO_Port,user_led_Pin);
+		  Flag_tim7 = 0;
+	  }
+	  else{
+		  HAL_SuspendTick();
+		  HAL_PWR_EnterSLEEPMode(PWR_MAINREGULATOR_ON, PWR_SLEEPENTRY_WFE);
 
-	  /* Read output only if new value is available */
-
-
-	      get_values_pressure_sensor_lps22hh();
-
-	      get_grandeur_values_sensor_hts221();
-
-	       printf("******\r\n");
-	       snprintf((char *)tx_buffer, sizeof(tx_buffer), "pressure [hPa]:%6.2f\r\n", pressure_hPa);
-	       printf((char *)tx_buffer);
-	       snprintf((char *)tx_buffer, sizeof(tx_buffer), "Humidity [%%]:%3.2f\r\n", grandeur.hum);
-	       printf((char *)tx_buffer);
-	       snprintf((char *)tx_buffer, sizeof(tx_buffer), "Temperature [degC]:%6.2f\r\n",
-	               grandeur.temp );
-	       printf((char *) tx_buffer);
-
-	     //**************************
-	     HAL_GPIO_TogglePin(user_led_GPIO_Port,user_led_Pin);
-
-	   	 HAL_Delay(1000);
+		  HAL_ResumeTick();
+	  }
     /* USER CODE END WHILE */
-
 
     /* USER CODE BEGIN 3 */
   }
@@ -256,7 +249,50 @@ PUTCHAR_PROTOTYPE
   return ch;
 }
 
-//Temperature
+void TouchScreen(){
+	BSP_TS_Init(800, 400);
+}
+
+void DrawBlock(uint16_t x, uint16_t y, const char *title) {
+    // Dessiner le rectangle
+    BSP_LCD_SetTextColor(LCD_COLOR_BLACK);
+    BSP_LCD_DrawRect(x, y, BLOCK_WIDTH, BLOCK_HEIGHT);
+
+    // Remplir le fond (optionnel, ici blanc)
+    BSP_LCD_SetTextColor(LCD_COLOR_WHITE);
+    BSP_LCD_FillRect(x + 1, y + 1, BLOCK_WIDTH - 2, BLOCK_HEIGHT - 2);
+
+    // Afficher le titre en gras
+    BSP_LCD_SetTextColor(LCD_COLOR_BLACK);
+    BSP_LCD_SetBackColor(LCD_COLOR_WHITE);
+    BSP_LCD_SetFont(&Font20);
+    BSP_LCD_DisplayStringAt(x + 10, y + 10, (uint8_t *)title, LEFT_MODE);
+
+
+}
+
+void setDrawText(uint16_t x, uint16_t y, const char *value){
+	  // Afficher la valeur
+	    BSP_LCD_SetFont(&Font16);
+	    BSP_LCD_DisplayStringAt(x + 10, y + 40, (uint8_t *)value, LEFT_MODE);
+}
+
+void show_sensors(){
+	  get_values_pressure_sensor_lps22hh();
+	  get_grandeur_values_sensor_hts221();
+
+	   snprintf((char *)tx_buffer, sizeof(tx_buffer), "%6.2f[degC]",
+			   grandeur.temp, '\xB0');
+	   setDrawText(20, 20, (char *)tx_buffer);
+
+	   snprintf((char *)tx_buffer, sizeof(tx_buffer), "%3.2f[%c]", grandeur.hum, 37);
+	   setDrawText(20 + BLOCK_WIDTH + BLOCK_PADDING, 20, (char *)tx_buffer);
+
+	   snprintf((char *)tx_buffer, sizeof(tx_buffer),"%6.2f[hPa]", pressure_hPa);
+	   setDrawText(20, 20 + BLOCK_HEIGHT + BLOCK_PADDING, (char *)tx_buffer);
+}
+
+
 
 
 /* USER CODE END 4 */
