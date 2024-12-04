@@ -40,16 +40,12 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "hts221_reg.h"
+#include "humidity.h"
 #include "pression.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
-
-//**********definition du bus I2C1*******
-
-#define SENSOR_BUS hi2c1
 
 
 /* USER CODE END PTD */
@@ -69,15 +65,8 @@
 /* USER CODE BEGIN PV */
 /* Private variables ---------------------------------------------------------*/
 
-//*****************************
-static int16_t data_raw_humidity;
-static int16_t data_raw_temperature;
-static float humidity_perc;
-static float temperature_degC;
-static uint8_t whoamI;
-static uint8_t tx_buffer[1000];
-//*****************************
-
+extern volatile float pressure_hPa;
+extern volatile hum_temp_t grandeur;
 
 /* USER CODE END PV */
 
@@ -89,24 +78,6 @@ void SystemClock_Config(void);
 
 
 //**************************
-static int32_t platform_write(void *handle, uint8_t reg, const uint8_t *bufp,
-                              uint16_t len);
-static int32_t platform_read(void *handle, uint8_t reg, uint8_t *bufp,
-                             uint16_t len);
-static void platform_delay(uint32_t ms);
-typedef struct {
-  float x0;
-  float y0;
-  float x1;
-  float y1;
-} lin_t;
-
-float linear_interpolation(lin_t *lin, int16_t x)
-{
-  return ((lin->y1 - lin->y0) * x + ((lin->x1 * lin->y0) -
-                                     (lin->x0 * lin->y1)))
-         / (lin->x1 - lin->x0);
-}
 //***************************
 
 
@@ -127,11 +98,7 @@ int main(void)
 
   /* USER CODE BEGIN 1 */
 //********************************
-	stmdev_ctx_t dev_ctx;
-	  dev_ctx.write_reg = platform_write;
-	  dev_ctx.read_reg = platform_read;
-	  dev_ctx.mdelay = platform_delay;
-	  dev_ctx.handle = &SENSOR_BUS;
+
 	  //***************************
 
 
@@ -188,88 +155,35 @@ int main(void)
   /* USER CODE BEGIN WHILE */
 
 
-
-
-    //Temperature
-      /* Check device ID */
-      //**************************
-        whoamI = 0;
-        hts221_device_id_get(&dev_ctx, &whoamI);
-
-        if ( whoamI != HTS221_ID ) printf("Device not found!!\r\n");
-         // while (1); /*manage here device not found */
-        /* Read humidity calibration coefficient */
-          lin_t lin_hum;
-          hts221_hum_adc_point_0_get(&dev_ctx, &lin_hum.x0);
-          hts221_hum_rh_point_0_get(&dev_ctx, &lin_hum.y0);
-          hts221_hum_adc_point_1_get(&dev_ctx, &lin_hum.x1);
-          hts221_hum_rh_point_1_get(&dev_ctx, &lin_hum.y1);
-          /* Read temperature calibration coefficient */
-          lin_t lin_temp;
-          hts221_temp_adc_point_0_get(&dev_ctx, &lin_temp.x0);
-          hts221_temp_deg_point_0_get(&dev_ctx, &lin_temp.y0);
-          hts221_temp_adc_point_1_get(&dev_ctx, &lin_temp.x1);
-          hts221_temp_deg_point_1_get(&dev_ctx, &lin_temp.y1);
-          /* Enable Block Data Update */
-          hts221_block_data_update_set(&dev_ctx, PROPERTY_ENABLE);
-          /* Set Output Data Rate */
-          hts221_data_rate_set(&dev_ctx, HTS221_ODR_1Hz);
-          /* Device power on */
-          hts221_power_on_set(&dev_ctx, PROPERTY_ENABLE);
-          //***************************
-
-
-
-
+   if(start_sensor_hts221()== -1) printf("Device for sensor hts221 not found!");
+   if(start_sensor_lps22hh() == -1) printf("Device for sensor lps22hh not found!");
 
   HAL_GPIO_WritePin(user_led_GPIO_Port, user_led_Pin, GPIO_PIN_RESET);
 
-  static float t;
+  static uint8_t tx_buffer[1000];
   while (1)
   {
 
 	  /* Read output only if new value is available */
-	     hts221_reg_t reg;
-	     hts221_status_get(&dev_ctx, &reg.status_reg);
 
 
-	      t = lps22hh_read_data_polling();
-	      snprintf((char *)tx_buffer, sizeof(tx_buffer), "pressure [hPa]:%6.2f\r\n", t);
+	      get_values_pressure_sensor_lps22hh();
 
-	     //*****************************
-	     if (reg.status_reg.h_da) {
-	       /* Read humidity data */
-	       memset(&data_raw_humidity, 0x00, sizeof(int16_t));
-	       hts221_humidity_raw_get(&dev_ctx, &data_raw_humidity);
-	       humidity_perc = linear_interpolation(&lin_hum, data_raw_humidity);
+	      get_grandeur_values_sensor_hts221();
 
-	       if (humidity_perc < 0) {
-	         humidity_perc = 0;
-	       }
-
-	       if (humidity_perc > 100) {
-	         humidity_perc = 100;
-	       }
 	       printf("******\r\n");
+	       snprintf((char *)tx_buffer, sizeof(tx_buffer), "pressure [hPa]:%6.2f\r\n", pressure_hPa);
 	       printf((char *)tx_buffer);
-	       snprintf((char *)tx_buffer, sizeof(tx_buffer), "Humidity [%%]:%3.2f\r\n", humidity_perc);
+	       snprintf((char *)tx_buffer, sizeof(tx_buffer), "Humidity [%%]:%3.2f\r\n", grandeur.hum);
 	       printf((char *)tx_buffer);
-	     }
-
-	     if (reg.status_reg.t_da) {
-	       /* Read temperature data */
-	       memset(&data_raw_temperature, 0x00, sizeof(int16_t));
-	       hts221_temperature_raw_get(&dev_ctx, &data_raw_temperature);
-	       temperature_degC = linear_interpolation(&lin_temp,
-	                                               data_raw_temperature);
 	       snprintf((char *)tx_buffer, sizeof(tx_buffer), "Temperature [degC]:%6.2f\r\n",
-	               temperature_degC );
+	               grandeur.temp );
 	       printf((char *) tx_buffer);
-	     }
+
 	     //**************************
 	     HAL_GPIO_TogglePin(user_led_GPIO_Port,user_led_Pin);
 
-	   	  HAL_Delay(250);
+	   	 HAL_Delay(1000);
     /* USER CODE END WHILE */
 
 
@@ -343,31 +257,7 @@ PUTCHAR_PROTOTYPE
 }
 
 //Temperature
-static int32_t platform_write(void *handle, uint8_t reg, const uint8_t *bufp,
-                              uint16_t len)
-{
-	 /* Write multiple command */
-	  reg |= 0x80;
-	  HAL_I2C_Mem_Write(handle, HTS221_I2C_ADDRESS, reg,
-	                    I2C_MEMADD_SIZE_8BIT, (uint8_t*) bufp, len, 1000);
-	  return 0;
-}
 
-static int32_t platform_read(void *handle, uint8_t reg, uint8_t *bufp,
-                             uint16_t len)
-{
-	reg |= 0x80;
-	  HAL_I2C_Mem_Read(handle, HTS221_I2C_ADDRESS, reg,
-	                   I2C_MEMADD_SIZE_8BIT, bufp, len, 1000);
-	  return 0;
-
-}
-
-static void platform_delay(uint32_t ms)
-{
-  HAL_Delay(ms);
-
-}
 
 /* USER CODE END 4 */
 

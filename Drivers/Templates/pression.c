@@ -5,42 +5,47 @@
 #include "lps22hh_reg.h"
 
 static uint32_t data_raw_pressure;
-static float pressure_hPa;
+volatile float pressure_hPa;
 static uint8_t whoamI, rst;
-static uint8_t tx_buffer[TX_BUF_DIM];
+//static uint8_t tx_buffer[TX_BUF_DIM];
+
+static stmdev_ctx_t dev_ctx;
+static lps22hh_reg_t reg;
 
 
+uint8_t start_sensor_lps22hh(void){
+	/* Initialize mems driver interface */
+	  dev_ctx.write_reg = platform_write;
+	  dev_ctx.read_reg = platform_read;
+	  dev_ctx.mdelay = platform_delay;
+	  dev_ctx.handle = &SENSOR_BUS;
+	  /* Initialize platform specific hardware */
+	  /* Wait sensor boot time */
+	  platform_delay(800);
+	  /* Check device ID */
+	  whoamI = 0;
+	  lps22hh_device_id_get(&dev_ctx, &whoamI);
 
-float lps22hh_read_data_polling(void)
+	  if ( whoamI != LPS22HH_ID )
+	    return -1; /*manage here device not found */
+
+	  /* Restore default configuration */
+	  lps22hh_reset_set(&dev_ctx, PROPERTY_ENABLE);
+
+	  do {
+	    lps22hh_reset_get(&dev_ctx, &rst);
+	  } while (rst);
+
+	  /* Enable Block Data Update */
+	  lps22hh_block_data_update_set(&dev_ctx, PROPERTY_ENABLE);
+	  /* Set Output Data Rate */
+	  lps22hh_data_rate_set(&dev_ctx, LPS22HH_10_Hz_LOW_NOISE);
+
+	  return 0;
+
+}
+void get_values_pressure_sensor_lps22hh(void)
 {
-  stmdev_ctx_t dev_ctx;
-  lps22hh_reg_t reg;
-  /* Initialize mems driver interface */
-  dev_ctx.write_reg = platform_write;
-  dev_ctx.read_reg = platform_read;
-  dev_ctx.mdelay = platform_delay;
-  dev_ctx.handle = &SENSOR_BUS;
-  /* Initialize platform specific hardware */
-  /* Wait sensor boot time */
-  platform_delay(BOOT_TIME);
-  /* Check device ID */
-  whoamI = 0;
-  lps22hh_device_id_get(&dev_ctx, &whoamI);
-
-  if ( whoamI != LPS22HH_ID )
-    while (1); /*manage here device not found */
-
-  /* Restore default configuration */
-  lps22hh_reset_set(&dev_ctx, PROPERTY_ENABLE);
-
-  do {
-    lps22hh_reset_get(&dev_ctx, &rst);
-  } while (rst);
-
-  /* Enable Block Data Update */
-  lps22hh_block_data_update_set(&dev_ctx, PROPERTY_ENABLE);
-  /* Set Output Data Rate */
-  lps22hh_data_rate_set(&dev_ctx, LPS22HH_10_Hz_LOW_NOISE);
 
   /* Read samples in polling mode (no int) */
     /* Read output only if new value is available */
@@ -51,9 +56,6 @@ float lps22hh_read_data_polling(void)
       lps22hh_pressure_raw_get(&dev_ctx, &data_raw_pressure);
       pressure_hPa = lps22hh_from_lsb_to_hpa( data_raw_pressure);
       //snprintf((char *)tx_buffer, sizeof(tx_buffer), "pressure [hPa]:%6.2f\r\n", pressure_hPa);
-
-      return pressure_hPa;
-
   }
 }
 
