@@ -63,8 +63,7 @@ uint8_t start_sensor_hts221(){
 	/* Device power on */
 	hts221_power_on_set(&dev_ctx, PROPERTY_ENABLE);
 
-	return 0;
-
+	return -1;
 }
 
 void get_grandeur_values_sensor_hts221(){
@@ -100,9 +99,7 @@ void get_grandeur_values_sensor_hts221(){
 											   data_raw_temperature);
 
 	   grandeur.temp = temperature_degC;
-	   /*snprintf((char *)tx_buffer, sizeof(tx_buffer), "Temperature [degC]:%6.2f\r\n",
-			   temperature_degC );
-	   printf((char *) tx_buffer);*/
+
 	 }
 }
 

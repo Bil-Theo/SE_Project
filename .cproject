@@ -56,6 +56,8 @@
 									<listOptionValue builtIn="false" value="../Drivers/Templates"/>
 									<listOptionValue builtIn="false" value="../Utilities/Inc_Images"/>
 									<listOptionValue builtIn="false" value="../Screens"/>
+									<listOptionValue builtIn="false" value="../Drivers/Templates/Sensors"/>
+									<listOptionValue builtIn="false" value="../Drivers/Templates/Screens"/>
 								</option>
 								<inputType id="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.c.compiler.input.c.296523179" superClass="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.c.compiler.input.c"/>
 							</tool>

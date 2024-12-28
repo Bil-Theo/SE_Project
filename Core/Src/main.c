@@ -42,9 +42,8 @@
 
 #include "humidity.h"
 #include "pression.h"
-#include "next.h"
-#include "meteo_reg.h"
-#include "fond.h"
+#include "display_reg.h"
+
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -77,8 +76,7 @@
 extern volatile float pressure_hPa;
 extern volatile hum_temp_t grandeur;
 volatile uint8_t Flag_tim4 = 0, Flag_tim7 = 0, Flag_btn = 0, Flag_tim2 = 0;
-static uint8_t tx_buffer[1000];
-static uint16_t cmpt = 0, screen_pile = 0;
+volatile uint16_t cmpt = 0, screen_pile = 0;
 
 extern TIM_HandleTypeDef htim4;
 extern TIM_HandleTypeDef htim7;
@@ -91,14 +89,10 @@ extern TIM_HandleTypeDef htim2;
 void SystemClock_Config(void);
 /* USER CODE BEGIN PFP */
 #define PUTCHAR_PROTOTYPE int __io_putchar(int ch)
-void DrawBlock(uint16_t x, uint16_t y, const char *title);
-void setDrawText(uint16_t x, uint16_t y, const char *value);
-void TouchScreen();
-void show_sensors();
+
 void stop_Mode();
 void start_again_timer(TIM_HandleTypeDef htim);
-void ephemere_screen();
-void base_screen(char *title1, char *title2, char *title3);
+
 
 
 /* USER CODE END PFP */
@@ -148,7 +142,8 @@ int main(void)
   MX_TIM2_Init();
   /* USER CODE BEGIN 2 */
 
-  BSP_TS_Init(800, 400);
+  HAL_Init();
+  BSP_TS_Init(480, 272);
   ephemere_screen();
   HAL_Delay(5000);
   BSP_LCD_Clear(LCD_COLOR_WHITE);
@@ -157,13 +152,12 @@ int main(void)
   if(start_sensor_hts221()== -1) printf("Device for sensor hts221 not found!");
   if(start_sensor_lps22hh() == -1) printf("Device for sensor lps22hh not found!");
 
-    HAL_Init();
     BSP_LCD_Init();
     BSP_LCD_LayerDefaultInit(LTDC_ACTIVE_LAYER, SDRAM_DEVICE_ADDR);
     BSP_LCD_SelectLayer(LTDC_ACTIVE_LAYER);
-  	base_screen("Temperature", "Humidité", "Pression");
-	BSP_LCD_DrawBitmap(380, 180, (uint8_t*)btn_next_bmp);
-	show_sensors();
+    sensors_screen();
+
+
 
   /* USER CODE END 2 */
 
@@ -286,84 +280,14 @@ PUTCHAR_PROTOTYPE
   return ch;
 }
 
-void TouchScreen(){
-	TS_StateTypeDef ts = {0};                  // Zero-initialize the current state to ensure no uninitialized data
-	    static TS_StateTypeDef prev_state = {0};
-	    static uint8_t is_touching = 0;           // Track if a touch is currently active
-
-	    BSP_TS_GetState(&ts);
-
-	    if (ts.touchDetected) {
-	        // If a touch is detected and no touch was previously active
-	    	start_again_timer(htim2);
-	        if (!is_touching) {
-	            is_touching = 1;  // Mark as touching
-	            if ((ts.touchX[0] >= 380 && ts.touchX[0] <= 380 + 60)
-	            		&& (ts.touchY[0] >= 180 && ts.touchY[0]<= 180 + 50)) {
-	                cmpt++;
-	                //printf("Touche ecran ici %d \r\n", cmpt);
-	                base_screen("Pluie", "Vent", "Transfert");
-	            	BSP_LCD_DrawBitmap(380, 180, (uint8_t*)btn_next_bmp);
-	            	if(screen_pile == 0){
-	            		base_screen("Pluie", "Vent", "Transfert");
-	            	    BSP_LCD_DrawBitmap(380, 180, (uint8_t*)btn_next_bmp);
-
-	            	    screen_pile = 1;
-	            	}
-	            	else{
-	            		base_screen("Temperature", "Humidite", "Pression");
-	            	    BSP_LCD_DrawBitmap(380, 180, (uint8_t*)btn_next_bmp);
-	            	    show_sensors();
-	            	    screen_pile = 0;
-	            	}
-
-	            }
-	        }
-	        // Update previous state
-	        prev_state.touchX[0] = ts.touchX[0];
-	        prev_state.touchY[0] = ts.touchY[0];
-	    } else {
-	        // If no touch is detected, reset the touch state
-	        is_touching = 0;
-	    }
-}
 
 void start_again_timer(TIM_HandleTypeDef htim){
 	 htim.Instance->CNT = 0; // Réinitialise le
 }
 
-void DrawBlock(uint16_t x, uint16_t y, const char *title) {
-    // Dessiner le rectangle
-    BSP_LCD_SetTextColor(LCD_COLOR_BLACK);
-    BSP_LCD_DrawRect(x, y, BLOCK_WIDTH, BLOCK_HEIGHT);
-
-    // Remplir le fond (optionnel, ici blanc)
-    BSP_LCD_SetTextColor(LCD_COLOR_WHITE);
-    BSP_LCD_FillRect(x + 1, y + 1, BLOCK_WIDTH - 2, BLOCK_HEIGHT - 2);
-
-    // Afficher le titre en gras
-    //BSP_LCD_DrawBitmap(0, 0, (uint8_t*)fond_bmp);
-    BSP_LCD_SetTextColor(LCD_COLOR_BLACK);
-    BSP_LCD_SetBackColor(LCD_COLOR_WHITE);
-    BSP_LCD_SetFont(&Font20);
-    BSP_LCD_DisplayStringAt(x + 10, y + 10, (uint8_t *)title, LEFT_MODE);
 
 
-}
 
-void setDrawText(uint16_t x, uint16_t y, const char *value){
-	  // Afficher la valeur
-	    BSP_LCD_SetFont(&Font16);
-	    BSP_LCD_DisplayStringAt(x + 10, y + 40, (uint8_t *)value, LEFT_MODE);
-}
-
-void base_screen(char *title1, char *title2, char *title3){
-  BSP_LCD_Clear(LCD_COLOR_WHITE);
-  // Dessiner les trois blocs
-	DrawBlock(20, 20, title1);
-	DrawBlock(20 + BLOCK_WIDTH + BLOCK_PADDING, 20, title2);
-	DrawBlock(20, 20 + BLOCK_HEIGHT + BLOCK_PADDING, title3);
-}
 
 void stop_Mode(){
 	HAL_GPIO_WritePin(user_led_GPIO_Port, user_led_Pin, GPIO_PIN_RESET);
@@ -372,31 +296,10 @@ void stop_Mode(){
 	HAL_GPIO_WritePin(red_led_GPIO_Port, red_led_Pin, GPIO_PIN_RESET);
 }
 
-void show_sensors(){
-	  get_values_pressure_sensor_lps22hh();
-	  get_grandeur_values_sensor_hts221();
-
-	   snprintf((char *)tx_buffer, sizeof(tx_buffer), "%6.2f[degC]",
-			   grandeur.temp, '\xB0');
-	   setDrawText(20, 20, (char *)tx_buffer);
-
-	   snprintf((char *)tx_buffer, sizeof(tx_buffer), "%3.2f[%c]", grandeur.hum, 37);
-	   setDrawText(20 + BLOCK_WIDTH + BLOCK_PADDING, 20, (char *)tx_buffer);
-
-	   snprintf((char *)tx_buffer, sizeof(tx_buffer),"%6.2f[hPa]", pressure_hPa);
-	   setDrawText(20, 20 + BLOCK_HEIGHT + BLOCK_PADDING, (char *)tx_buffer);
-}
 
 
-void ephemere_screen(){
-	 BSP_LCD_Init();
-	BSP_LCD_LayerDefaultInit(LTDC_ACTIVE_LAYER, SDRAM_DEVICE_ADDR);
-	BSP_LCD_SetLayerVisible(LTDC_ACTIVE_LAYER, ENABLE);
-	BSP_LCD_SetFont(&LCD_DEFAULT_FONT);
-	BSP_LCD_SelectLayer(LTDC_ACTIVE_LAYER);
-	BSP_LCD_Clear(LCD_COLOR_WHITE);
-	BSP_LCD_DrawBitmap(130, 60, (uint8_t*)meteo_bmp);
-}
+
+
 
 /* USER CODE END 4 */
 

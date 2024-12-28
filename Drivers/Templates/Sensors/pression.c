@@ -41,7 +41,7 @@ uint8_t start_sensor_lps22hh(void){
 	  /* Set Output Data Rate */
 	  lps22hh_data_rate_set(&dev_ctx, LPS22HH_10_Hz_LOW_NOISE);
 
-	  return 0;
+	  return -1;
 
 }
 void get_values_pressure_sensor_lps22hh(void)
