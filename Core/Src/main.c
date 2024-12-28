@@ -178,7 +178,8 @@ int main(void)
   HAL_GPIO_WritePin(user_led_GPIO_Port, user_led_Pin, GPIO_PIN_RESET);
 int i =0;
   while (1)
-  {
+  {// timer pour lattente avant mise en veille
+	  //Teste projet et avancement
 	  if(Flag_tim2 == 1){
 		  BSP_LCD_DisplayOff();
 		  /*
