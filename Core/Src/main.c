@@ -46,6 +46,8 @@
 #include "humidity.h"
 #include "pression.h"
 #include "display_reg.h"
+#include "meteo_reg.h"
+#include "fond1.h"
 
 /* USER CODE END Includes */
 
@@ -78,8 +80,9 @@
 
 extern volatile float pressure_hPa;
 extern volatile hum_temp_t grandeur;
-volatile uint8_t Flag_tim4 = 0, Flag_tim7 = 0, Flag_btn = 0, Flag_tim2 = 0;
+volatile uint8_t Flag_tim4 = 0, Flag_tim7 = 0, Flag_btn = 0, Flag_tim2 = 0, action = 1;
 volatile uint16_t cmpt = 0, screen_pile = 0;
+volatile uint8_t* inter0 = fond1_bmp;
 
 uint8_t sd_buffer[_MAX_SS]; /* Tampon de lecture/écriture pour SD */
 const char *sensor_data = "Température: 25.3°C, Humidité: 40%\n";
@@ -160,10 +163,10 @@ int main(void)
 
   HAL_Init();
   BSP_TS_Init(480, 272);
-  ephemere_screen();
-  HAL_Delay(5000);
-  BSP_LCD_Clear(LCD_COLOR_WHITE);
-  SD_Init();
+  //ephemere_screen();
+  //HAL_Delay(5000);
+  //BSP_LCD_Clear(LCD_COLOR_WHITE);
+  //SD_Init();
 
   if(start_sensor_hts221()== -1) printf("Device for sensor hts221 not found!");
   if(start_sensor_lps22hh() == -1) printf("Device for sensor lps22hh not found!");
@@ -171,8 +174,7 @@ int main(void)
     BSP_LCD_Init();
     BSP_LCD_LayerDefaultInit(LTDC_ACTIVE_LAYER, SDRAM_DEVICE_ADDR);
     BSP_LCD_SelectLayer(LTDC_ACTIVE_LAYER);
-    sensors_screen();
-
+    sensors_screen(inter0);
 
 
   /* USER CODE END 2 */
@@ -189,12 +191,15 @@ int main(void)
   HAL_TIM_Base_Start_IT(&htim3);
   HAL_TIM_Base_Start_IT(&htim2);
 
+  HAL_NVIC_SetPriority(TIM2_IRQn, 2, 0);
+    HAL_NVIC_SetPriority(TIM4_IRQn, 1, 0);
+    HAL_NVIC_SetPriority(TIM7_IRQn, 1, 0);
 
 
-  HAL_GPIO_WritePin(user_led_GPIO_Port, user_led_Pin, GPIO_PIN_RESET);
+
+  HAL_GPIO_WritePin(green_led_GPIO_Port, green_led_Pin, GPIO_PIN_RESET);
 int i =0;
   while (1)
-	    SD_WriteData("sensors_data.csv", sensor_data);
   {// timer pour lattente avant mise en veille
 	  //Teste projet et avancement
 	  if(Flag_tim2 == 1){
@@ -204,6 +209,7 @@ int i =0;
 		  HAL_PWR_EnterSTOPMode(PWR_MAINREGULATOR_ON, PWR_STOPENTRY_WFI);
 		  SystemClock_Config();
 		  HAL_ResumeTick();*/
+		  action = 0;
 
 		  Flag_tim2 =  0;
 	  }
@@ -212,14 +218,20 @@ int i =0;
 		   Flag_tim4 = 0;
 	  }
 	  else if(Flag_tim7 == 1){
-		  HAL_GPIO_TogglePin(user_led_GPIO_Port, user_led_Pin);
+		  if(action){
+			  HAL_GPIO_WritePin(red_led_GPIO_Port, red_led_Pin, 0);
+			  HAL_GPIO_TogglePin(green_led_GPIO_Port, green_led_Pin);
+		  }
+		  else{
+			  HAL_GPIO_WritePin(green_led_GPIO_Port, green_led_Pin, 0);
+			  HAL_GPIO_TogglePin(red_led_GPIO_Port, red_led_Pin);
+		  }
 		  Flag_tim7 = 0;
-		  i++;
-		  printf("je m'alume %d \r\n", i);
 	  }
 	  else if(Flag_btn == 1){
 		  start_again_timer(htim2);
 		  BSP_LCD_DisplayOn();
+		  action = 1;
 		  Flag_btn = 0;
 	  }
 	  else{
@@ -300,7 +312,10 @@ PUTCHAR_PROTOTYPE
 
 
 void start_again_timer(TIM_HandleTypeDef htim){
-	 htim.Instance->CNT = 0; // Réinitialise le
+
+	HAL_TIM_Base_Stop(&htim2);
+	__HAL_TIM_SET_COUNTER(&htim2, 0);
+	HAL_TIM_Base_Start(&htim2);
 }
 
 

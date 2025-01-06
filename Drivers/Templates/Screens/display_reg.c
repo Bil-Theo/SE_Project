@@ -14,8 +14,7 @@
 #include "hts221_reg.h"
 #include "humidity.h"
 #include "next.h"
-#include "meteo_reg.h"
-#include "fond.h"
+
 
 
 #define BLOCK_WIDTH 200
@@ -29,6 +28,7 @@ static uint8_t tx_buffer[1000];
 extern volatile float pressure_hPa;
 extern volatile hum_temp_t grandeur;
 extern volatile uint16_t cmpt, screen_pile;
+extern volatile uint8_t* inter0;
 
 void show_sensors(){
 	  get_values_pressure_sensor_lps22hh();
@@ -36,13 +36,13 @@ void show_sensors(){
 
 	   snprintf((char *)tx_buffer, sizeof(tx_buffer), "%6.2f[degC]",
 			   grandeur.temp, '\xB0');
-	   setDrawText(20, 20, (char *)tx_buffer);
+	   setDrawText(60, 55, (char *)tx_buffer);
 
 	   snprintf((char *)tx_buffer, sizeof(tx_buffer), "%3.2f[%c]", grandeur.hum, 37);
-	   setDrawText(20 + BLOCK_WIDTH + BLOCK_PADDING, 20, (char *)tx_buffer);
+	   setDrawText(110 + BLOCK_WIDTH + BLOCK_PADDING, 55, (char *)tx_buffer);
 
 	   snprintf((char *)tx_buffer, sizeof(tx_buffer),"%6.2f[hPa]", pressure_hPa);
-	   setDrawText(20, 20 + BLOCK_HEIGHT + BLOCK_PADDING, (char *)tx_buffer);
+	   setDrawText(195, 60 + BLOCK_HEIGHT + BLOCK_PADDING, (char *)tx_buffer);
 }
 
 
@@ -62,19 +62,18 @@ void base_screen(char *title1, char *title2, char *title3){
 }
 
 
-void ephemere_screen(){
+void ephemere_screen(uint8_t*img){
 	 BSP_LCD_Init();
 	BSP_LCD_LayerDefaultInit(LTDC_ACTIVE_LAYER, SDRAM_DEVICE_ADDR);
 	BSP_LCD_SetLayerVisible(LTDC_ACTIVE_LAYER, ENABLE);
 	BSP_LCD_SetFont(&LCD_DEFAULT_FONT);
 	BSP_LCD_SelectLayer(LTDC_ACTIVE_LAYER);
 	BSP_LCD_Clear(LCD_COLOR_WHITE);
-	BSP_LCD_DrawBitmap(130, 60, (uint8_t*)meteo_bmp);
+	BSP_LCD_DrawBitmap(130, 60,img) ;
 }
 
-void sensors_screen(){
-	base_screen("Temperature", "Humidite", "Pression");
-	BSP_LCD_DrawBitmap(380, 180, (uint8_t*)btn_next_bmp);
+void sensors_screen(uint8_t*img){
+	BSP_LCD_DrawBitmap(0, -10,img) ;
 	show_sensors();
 }
 
@@ -141,7 +140,7 @@ void TouchScreen(){
 	            	    screen_pile = 1;
 	            	}
 	            	else{
-	            		sensors_screen();
+	            		sensors_screen(inter0);
 	            	    screen_pile = 0;
 	            	}
 
