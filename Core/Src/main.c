@@ -47,6 +47,7 @@
 
 #include "humidity.h"
 #include "pression.h"
+#include "pluviometre.h"
 #include "display_reg.h"
 #include "meteo_reg.h"
 #include "fond1.h"
@@ -83,8 +84,7 @@
 // Constante pour convertir les ticks en vitesse (2.4 km/h par tick/s)
 extern volatile float pressure_hPa;
 extern volatile hum_temp_t grandeur;
-volatile uint8_t Flag_tim4 = 0, Flag_tim7 = 0, Flag_btn = 0, Flag_tim2 = 0,Flag_tim5=0, action = 1;
-volatile uint16_t cmpt = 0, screen_pile = 0;
+volatile uint8_t Flag_tim4 = 0, Flag_tim7 = 0, Flag_btn = 0, Flag_tim2 = 0,Flag_tim5=0, action = 1,  screen_pile = 0;
 volatile uint8_t* inter0 = fond1_bmp;
 
 
@@ -188,7 +188,11 @@ int main(void)
   HAL_TIM_Base_Init(&htim4) ;
   HAL_TIM_Base_Init(&htim3) ;
   HAL_TIM_Base_Init(&htim2) ;
+  HAL_TIM_Base_Init(&htim7) ;
+
+
   HAL_TIM_IC_Start_IT(&htim1, TIM_CHANNEL_1);
+
   HAL_TIM_Base_Start_IT(&htim4);
   HAL_TIM_Base_Start_IT(&htim5);
   HAL_TIM_Base_Start_IT(&htim7);
@@ -197,26 +201,22 @@ int main(void)
 
   HAL_NVIC_SetPriority(TIM2_IRQn, 2, 0);
   HAL_NVIC_SetPriority(TIM4_IRQn, 1, 0);
-  HAL_NVIC_SetPriority(TIM7_IRQn, 1, 0);
+  HAL_NVIC_SetPriority(TIM7_IRQn, 3, 0);
+  //HAL_NVIC_SetPriority(TIM5_IRQn, 1, 0);
 
   HAL_GPIO_WritePin(green_led_GPIO_Port, green_led_Pin, GPIO_PIN_RESET);
-int i =0;
+  int i =0;
   while (1)
   {// timer pour lattente avant mise en veille
 	  //Teste projet et avancement
 	  if(Flag_tim2 == 1){
 		  BSP_LCD_DisplayOff();
-		  /*
-		  HAL_SuspendTick();
-		  HAL_PWR_EnterSTOPMode(PWR_MAINREGULATOR_ON, PWR_STOPENTRY_WFI);
-		  SystemClock_Config();
-		  HAL_ResumeTick();*/
 		  action = 0;
 
 		  Flag_tim2 =  0;
 	  }
 	  else if(Flag_tim4 == 1){
-		   if(screen_pile == 0) show_sensors();
+		   show_sensors();
 		   Flag_tim4 = 0;
 	  }
 	  else if(Flag_tim7 == 1){

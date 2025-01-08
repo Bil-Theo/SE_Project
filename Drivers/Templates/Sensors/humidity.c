@@ -17,17 +17,14 @@ static int16_t data_raw_humidity;
 static int16_t data_raw_temperature;
 static float humidity_perc;
 static float temperature_degC;
-volatile float rainfall;
-float tick_count;
 static uint8_t whoamI;
 //static uint8_t tx_buffer[1000];
 
 static stmdev_ctx_t dev_ctx;
 static lin_t lin_hum;
 static lin_t lin_temp;
-extern volatile uint32_t interrupt_count = 0;
 
-static float linear_interpolation(lin_t *lin, int16_t x)
+float linear_interpolation(lin_t *lin, int16_t x)
 {
   return ((lin->y1 - lin->y0) * x + ((lin->x1 * lin->y0) -
                                      (lin->x0 * lin->y1)))
@@ -131,29 +128,5 @@ static void platform_delay(uint32_t ms)
   HAL_Delay(ms);
 
 }
-//
-///////////////////////////////////////////////////////////////////////////////
-void detect_pluie()
-    {
-        // Exemple d'utilisation du compteur d'interruptions
-        float rainfall = interrupt_count * 0.2794; // Calcul de la pluie en mm
 
-        // Afficher ou utiliser `rainfall` selon vos besoins
-        printf("Quantité de pluie : %.3f mm\r\n", rainfall);
-
-        //HAL_Delay(1000); // Attendre 1 seconde (ou toute autre logique)
-    }
-//////////////////////////////////////////////////////////////////////
-void Get_Wind_Speed() {
-   // Récupération des ticks capturés
-    float ticks_per_second = tick_count;
-
-   // Réinitialisation du compteur pour la prochaine mesure
-   tick_count = 0;
-
-   // Conversion des ticks/s en vitesse (km/h)
-   float speed_kmh = (ticks_per_second/5) * 2.4;
-
-   printf("vitesse vent : %.3f km/h\r\n", speed_kmh);
-   }
 //////////////////////////////////////////////////////////////////////
