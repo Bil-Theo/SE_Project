@@ -18,11 +18,13 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "adc.h"
 #include "dma.h"
 #include "dma2d.h"
 #include "fatfs.h"
 #include "i2c.h"
 #include "ltdc.h"
+#include "rtc.h"
 #include "sdmmc.h"
 #include "tim.h"
 #include "usart.h"
@@ -78,14 +80,17 @@
 /* USER CODE BEGIN PV */
 /* Private variables ---------------------------------------------------------*/
 
+// Constante pour convertir les ticks en vitesse (2.4 km/h par tick/s)
 extern volatile float pressure_hPa;
 extern volatile hum_temp_t grandeur;
-volatile uint8_t Flag_tim4 = 0, Flag_tim7 = 0, Flag_btn = 0, Flag_tim2 = 0, action = 1;
+volatile uint8_t Flag_tim4 = 0, Flag_tim7 = 0, Flag_btn = 0, Flag_tim2 = 0,Flag_tim5=0, action = 1;
 volatile uint16_t cmpt = 0, screen_pile = 0;
 volatile uint8_t* inter0 = fond1_bmp;
 
-uint8_t sd_buffer[_MAX_SS]; /* Tampon de lecture/écriture pour SD */
-const char *sensor_data = "Température: 25.3°C, Humidité: 40%\n";
+
+uint8_t workBuffer[_MAX_SS];
+int data[] = {10, 20, 30, 40, 50, 47, 511, 987654321, 2.0};// a remplacer par les valeur des capteurs
+
 
 extern TIM_HandleTypeDef htim4;
 extern TIM_HandleTypeDef htim7;
@@ -98,12 +103,10 @@ extern TIM_HandleTypeDef htim2;
 void SystemClock_Config(void);
 /* USER CODE BEGIN PFP */
 #define PUTCHAR_PROTOTYPE int __io_putchar(int ch)
-
+void register_SD_CARD();
+void detect_pluie();
 void stop_Mode();
 void start_again_timer(TIM_HandleTypeDef htim);
-
-void SD_Init(void);
-void SD_WriteData(const char *filename, const char *data);
 
 
 /* USER CODE END PFP */
@@ -150,15 +153,15 @@ int main(void)
   MX_TIM3_Init();
   MX_USART1_UART_Init();
   MX_TIM4_Init();
-  MX_TIM7_Init();
   MX_TIM2_Init();
   MX_SDMMC1_SD_Init();
   MX_FATFS_Init();
+  MX_ADC1_Init();
+  MX_RTC_Init();
+  MX_TIM1_Init();
+  MX_TIM7_Init();
+  MX_TIM5_Init();
   /* USER CODE BEGIN 2 */
-///////////////////////////////////////
-
-
-
 
 
   HAL_Init();
@@ -166,7 +169,7 @@ int main(void)
   //ephemere_screen();
   //HAL_Delay(5000);
   //BSP_LCD_Clear(LCD_COLOR_WHITE);
-  //SD_Init();
+
 
   if(start_sensor_hts221()== -1) printf("Device for sensor hts221 not found!");
   if(start_sensor_lps22hh() == -1) printf("Device for sensor lps22hh not found!");
@@ -181,21 +184,20 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-
+  HAL_TIM_Base_Init(&htim5) ;
   HAL_TIM_Base_Init(&htim4) ;
   HAL_TIM_Base_Init(&htim3) ;
   HAL_TIM_Base_Init(&htim2) ;
-
+  HAL_TIM_IC_Start_IT(&htim1, TIM_CHANNEL_1);
   HAL_TIM_Base_Start_IT(&htim4);
+  HAL_TIM_Base_Start_IT(&htim5);
   HAL_TIM_Base_Start_IT(&htim7);
   HAL_TIM_Base_Start_IT(&htim3);
   HAL_TIM_Base_Start_IT(&htim2);
 
   HAL_NVIC_SetPriority(TIM2_IRQn, 2, 0);
-    HAL_NVIC_SetPriority(TIM4_IRQn, 1, 0);
-    HAL_NVIC_SetPriority(TIM7_IRQn, 1, 0);
-
-
+  HAL_NVIC_SetPriority(TIM4_IRQn, 1, 0);
+  HAL_NVIC_SetPriority(TIM7_IRQn, 1, 0);
 
   HAL_GPIO_WritePin(green_led_GPIO_Port, green_led_Pin, GPIO_PIN_RESET);
 int i =0;
@@ -263,9 +265,10 @@ void SystemClock_Config(void)
   /** Initializes the RCC Oscillators according to the specified parameters
   * in the RCC_OscInitTypeDef structure.
   */
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI;
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI|RCC_OSCILLATORTYPE_LSI;
   RCC_OscInitStruct.HSIState = RCC_HSI_ON;
   RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
+  RCC_OscInitStruct.LSIState = RCC_LSI_ON;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
   RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSI;
   RCC_OscInitStruct.PLL.PLLM = 8;
@@ -317,7 +320,74 @@ void start_again_timer(TIM_HandleTypeDef htim){
 	__HAL_TIM_SET_COUNTER(&htim2, 0);
 	HAL_TIM_Base_Start(&htim2);
 }
+void register_SD_CARD(int *array, int size) {
+    /*##-1- Link the micro SD disk I/O driver ##################################*/
+    // if(FATFS_LinkDriver(&SD_Driver, SDPath) == 0)
+    // {
 
+    /*##-2- Register the file system object to the FatFs module ##############*/
+    if (f_mount(&SDFatFS, (TCHAR const *)SDPath, 0) != FR_OK) {
+        /* FatFs Initialization Error */
+        Error_Handler();
+    } else {
+        /*##-3- Create a FAT file system (format) on the logical drive #########*/
+        /* WARNING: Formatting the uSD card will delete all content on the device */
+        if (f_mkfs((TCHAR const *)SDPath, FM_ANY, 0, workBuffer, sizeof(workBuffer)) != FR_OK) {
+            printf("Formatting failed\n");
+            /* FatFs Format Error */
+            Error_Handler();
+        } else {
+            /*##-4- Create and Open a new text file object with write access #####*/
+            if (f_open(&SDFile, "yala.csv", FA_CREATE_ALWAYS | FA_WRITE) != FR_OK) {
+                printf("File opening for writing failed\n");
+                /* 'test.csv' file Open for write Error */
+                Error_Handler();
+            } else {
+                /*##-5- Write array data along with RTC time to the CSV file #####*/
+                char buffer[100];
+                UINT byteswritten;
+                FRESULT res;
+
+                /* Write CSV header */
+                snprintf(buffer, sizeof(buffer), "Year/Month/Day;Hour:Minute:Second;Value\n");
+                res = f_write(&SDFile, buffer, strlen(buffer), (void *)&byteswritten);
+                if ((byteswritten == 0) || (res != FR_OK)) {
+                    printf("Error writing header to file\n");
+                    Error_Handler();
+                }
+
+                for (int i = 0; i < size; i++) {
+                    /* Fetch RTC time */
+                    RTC_TimeTypeDef sTime;
+                    RTC_DateTypeDef sDate;
+
+                    HAL_RTC_GetTime(&hrtc, &sTime, RTC_FORMAT_BIN);
+                    HAL_RTC_GetDate(&hrtc, &sDate, RTC_FORMAT_BIN);
+
+                    /* Format data into CSV row */
+                    snprintf(buffer, sizeof(buffer), "%04d/%02d/%02d;%02d:%02d:%02d;%d\n",
+                             2000 + sDate.Year, sDate.Month, sDate.Date, sTime.Hours, sTime.Minutes, sTime.Seconds, array[i]);
+
+                    res = f_write(&SDFile, buffer, strlen(buffer), (void *)&byteswritten);
+
+                    if ((byteswritten == 0) || (res != FR_OK)) {
+                        printf("Error writing to file\n");
+                        /* 'test.csv' file Write or EOF Error */
+                        Error_Handler();
+                        break;
+                    }
+                }
+
+                /*##-6- Close the open text file #################################*/
+                f_close(&SDFile);
+
+                printf("Data written to CSV successfully\n");
+            }
+        }
+    }
+
+    FATFS_UnLinkDriver(SDPath);
+}
 
 
 
@@ -329,59 +399,6 @@ void stop_Mode(){
 	HAL_GPIO_WritePin(red_led_GPIO_Port, red_led_Pin, GPIO_PIN_RESET);
 }
 
-void SD_Init(void) {
-    if (f_mount(&SDFatFS, (TCHAR const *)SDPath, 0) != FR_OK) {
-        printf("Erreur: Montage de la carte SD échoué.\n");
-        Error_Handler();
-    }
-}
-
-// Fonction pour écrire des données sur la carte SD
-  void SD_WriteData(const char *filename, const char *data) {
-      UINT byteswritten;
-      FRESULT res;
-      // fonction de debeugage
-//      FRESULT res = f_open(&SDFile, "sensors_data.csv", FA_CREATE_ALWAYS | FA_WRITE);
-//      if (res != FR_OK) {
-//          switch (res) {
-//              case FR_NO_FILESYSTEM:
-//                  printf("Erreur: Pas de système de fichiers sur la carte SD.\n");
-//                  break;
-//              case FR_DISK_ERR:
-//                  printf("Erreur: Problème matériel avec la carte SD.\n");
-//                  break;
-//              case FR_NOT_READY:
-//                  printf("Erreur: La carte SD n'est pas prête.\n");
-//                  break;
-//              case FR_WRITE_PROTECTED:
-//                  printf("Erreur: La carte SD est protégée en écriture.\n");
-//                  break;
-//              default:
-//                  printf("Erreur FATFS: %d\n", res);
-//                  break;
-//          }
-//          Error_Handler();
-//      }
-
-
-      // Ouvrir ou créer le fichier
-      if (f_open(&SDFile, filename, FA_OPEN_APPEND | FA_WRITE) != FR_OK) {
-          printf("Erreur: Impossible d'ouvrir ou de créer le fichier.\n");
-          Error_Handler();
-      } else {
-          // Écrire dans le fichier
-          res = f_write(&SDFile, data, strlen(data), &byteswritten);
-          if (res != FR_OK || byteswritten == 0) {
-              printf("Erreur: Écriture échouée.\n");
-              Error_Handler();
-          } else {
-              printf("Données écrites: %s\n", data);
-          }
-
-          // Fermer le fichier
-          f_close(&SDFile);
-      }
-  }
 
 
 

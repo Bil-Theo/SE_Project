@@ -410,7 +410,7 @@ HAL_StatusTypeDef HAL_SD_InitCard(SD_HandleTypeDef *hsd)
   Init.ClockEdge           = SDMMC_CLOCK_EDGE_RISING;
   Init.ClockBypass         = SDMMC_CLOCK_BYPASS_DISABLE;
   Init.ClockPowerSave      = SDMMC_CLOCK_POWER_SAVE_DISABLE;
-  Init.BusWide             = SDMMC_BUS_WIDE_4B;
+  Init.BusWide             = SDMMC_BUS_WIDE_1B;
   Init.HardwareFlowControl = SDMMC_HARDWARE_FLOW_CONTROL_DISABLE;
   Init.ClockDiv            = SDMMC_INIT_CLK_DIV;
 

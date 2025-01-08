@@ -57,6 +57,9 @@ void Error_Handler(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
+#define pluie_Pin GPIO_PIN_15
+#define pluie_GPIO_Port GPIOA
+#define pluie_EXTI_IRQn EXTI15_10_IRQn
 #define SD_Pin GPIO_PIN_13
 #define SD_GPIO_Port GPIOC
 #define user_led_Pin GPIO_PIN_1

@@ -15,8 +15,6 @@
 #include "humidity.h"
 #include "next.h"
 
-
-
 #define BLOCK_WIDTH 200
 #define BLOCK_HEIGHT 100
 #define BLOCK_PADDING 20
@@ -26,9 +24,12 @@
 
 static uint8_t tx_buffer[1000];
 extern volatile float pressure_hPa;
+extern volatile float rainfall;
+extern float tick_count;
 extern volatile hum_temp_t grandeur;
 extern volatile uint16_t cmpt, screen_pile;
 extern volatile uint8_t* inter0;
+
 
 void show_sensors(){
 	  get_values_pressure_sensor_lps22hh();
@@ -43,6 +44,9 @@ void show_sensors(){
 
 	   snprintf((char *)tx_buffer, sizeof(tx_buffer),"%6.2f[hPa]", pressure_hPa);
 	   setDrawText(195, 60 + BLOCK_HEIGHT + BLOCK_PADDING, (char *)tx_buffer);
+
+//	   snprintf((char *)tx_buffer, sizeof(tx_buffer), "%6.2f[mm]",rainfall);
+//	   setDrawText(60, 55, (char *)tx_buffer);
 }
 
 
@@ -154,3 +158,5 @@ void TouchScreen(){
 	        is_touching = 0;
 	    }
 }
+
+
