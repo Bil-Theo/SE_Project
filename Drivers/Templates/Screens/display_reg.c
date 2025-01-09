@@ -14,6 +14,7 @@
 #include "hts221_reg.h"
 #include "humidity.h"
 #include "next.h"
+#include "fond1.h"
 #include "pluviometre.h"
 
 #define BLOCK_WIDTH 200
@@ -28,14 +29,16 @@ extern volatile float pressure_hPa;
 extern volatile float qte_pluie, speed_kmh;
 extern float tick_count;
 extern volatile hum_temp_t grandeur;
-extern volatile uint16_t cmpt, screen_pile;
-extern volatile uint8_t* inter0;
+extern volatile uint16_t screen_pile;
+static int cmpt = 0;
+
 
 
 void show_sensors(){
 	  get_values_pressure_sensor_lps22hh();
 	  get_grandeur_values_sensor_hts221();
-
+	  //BSP_LCD_Clear(LCD_COLOR_WHITE);
+	  sensors_screen();
 	   snprintf((char *)tx_buffer, sizeof(tx_buffer), "%6.2f[degC]",
 			   grandeur.temp);
 	   setDrawText(60, 55, (char *)tx_buffer);
@@ -53,6 +56,9 @@ void show_sensors(){
 void show_rain(){
 	  Get_Wind_Speed();
 	  detect_pluie();
+
+	 // BSP_LCD_Clear(LCD_COLOR_WHITE);
+	  sensors_screen();
 
 	   snprintf((char *)tx_buffer, sizeof(tx_buffer), "%6.2f", qte_pluie);
 	   setDrawText(60, 55, (char *)tx_buffer);
@@ -96,9 +102,8 @@ void ephemere_screen(uint8_t*img){
 	BSP_LCD_DrawBitmap(130, 60,img) ;
 }
 
-void sensors_screen(uint8_t*img){
-	BSP_LCD_DrawBitmap(0, -10,img) ;
-	show_sensors();
+void sensors_screen(){
+	BSP_LCD_DrawBitmap(0, -10,(uint8_t*)fond1_bmp) ;
 }
 
 void raie_screen(){
@@ -145,19 +150,30 @@ void TouchScreen(){
 	    TS_StateTypeDef ts = {0};                  // Zero-initialize the current state to ensure no uninitialized data
 	    static TS_StateTypeDef prev_state = {0};
 	    static uint8_t is_touching = 0;           // Track if a touch is currently active
+	    int staticArray[10] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
 
 	    BSP_TS_GetState(&ts);
+
 
 	    if (ts.touchDetected) {
 	        // If a touch is detected and no touch was previously active
 	    	start_again_timer(htim2);
 	        if (!is_touching) {
 	            is_touching = 1;  // Mark as touching
-	            if ((ts.touchX[0] >= 380 && ts.touchX[0] <= 380 + 60)
-	            		&& (ts.touchY[0] >= 165 && ts.touchY[0]<= 165 + 50)) {
+
+	            /*clic button stocker*/
+	            if ((ts.touchX[0] >= 45 && ts.touchX[0] <= 80 + 30)
+	            	            		&& (ts.touchY[0] >= 190 && ts.touchY[0]<= 260)){
+	            	cmpt++;
+	            	printf("Touche ecran ici %d \r\n", cmpt);
+	            	//register_SD_CARD(staticArray, 10);
+
+	            }
+	            if ((ts.touchX[0] >= 380 && ts.touchX[0] <= 440)
+	            		&& (ts.touchY[0] >= 145 && ts.touchY[0]<= 250)) {
 	                //cmpt++;
 	                //printf("Touche ecran ici %d \r\n", cmpt);
-	                show_rain();
+	                //show_rain();
 	            	if(screen_pile == 0){
 	            		show_rain();
 	            	    screen_pile = 1;

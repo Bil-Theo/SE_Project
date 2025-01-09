@@ -50,7 +50,7 @@
 #include "pluviometre.h"
 #include "display_reg.h"
 #include "meteo_reg.h"
-#include "fond1.h"
+
 
 /* USER CODE END Includes */
 
@@ -85,7 +85,7 @@
 extern volatile float pressure_hPa;
 extern volatile hum_temp_t grandeur;
 volatile uint8_t Flag_tim4 = 0, Flag_tim7 = 0, Flag_btn = 0, Flag_tim2 = 0,Flag_tim5=0, action = 1,  screen_pile = 0;
-volatile uint8_t* inter0 = fond1_bmp;
+
 
 
 uint8_t workBuffer[_MAX_SS];
@@ -177,7 +177,7 @@ int main(void)
     BSP_LCD_Init();
     BSP_LCD_LayerDefaultInit(LTDC_ACTIVE_LAYER, SDRAM_DEVICE_ADDR);
     BSP_LCD_SelectLayer(LTDC_ACTIVE_LAYER);
-    sensors_screen(inter0);
+    show_sensors();
 
 
   /* USER CODE END 2 */
@@ -214,10 +214,6 @@ int main(void)
 		  action = 0;
 
 		  Flag_tim2 =  0;
-	  }
-	  else if(Flag_tim4 == 1){
-		   show_sensors();
-		   Flag_tim4 = 0;
 	  }
 	  else if(Flag_tim7 == 1){
 		  if(action){
@@ -332,17 +328,20 @@ void register_SD_CARD(int *array, int size) {
     } else {
         /*##-3- Create a FAT file system (format) on the logical drive #########*/
         /* WARNING: Formatting the uSD card will delete all content on the device */
+    	printf("1er reussi\r\n");
         if (f_mkfs((TCHAR const *)SDPath, FM_ANY, 0, workBuffer, sizeof(workBuffer)) != FR_OK) {
             printf("Formatting failed\n");
             /* FatFs Format Error */
             Error_Handler();
         } else {
+        	printf("2e reussi\r\n");
             /*##-4- Create and Open a new text file object with write access #####*/
             if (f_open(&SDFile, "yala.csv", FA_CREATE_ALWAYS | FA_WRITE) != FR_OK) {
                 printf("File opening for writing failed\n");
                 /* 'test.csv' file Open for write Error */
                 Error_Handler();
             } else {
+            	printf("3e reussi\r\n");
                 /*##-5- Write array data along with RTC time to the CSV file #####*/
                 char buffer[100];
                 UINT byteswritten;
@@ -355,7 +354,7 @@ void register_SD_CARD(int *array, int size) {
                     printf("Error writing header to file\n");
                     Error_Handler();
                 }
-
+                printf("4e reussi\r\n");
                 for (int i = 0; i < size; i++) {
                     /* Fetch RTC time */
                     RTC_TimeTypeDef sTime;
