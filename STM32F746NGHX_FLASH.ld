@@ -76,6 +76,8 @@ SECTIONS
     _etext = .;        /* define a global symbols at end of code */
   } >FLASH
 
+  
+
   /* Constant data into "FLASH" Rom type memory */
   .rodata :
   {
@@ -185,3 +187,4 @@ SECTIONS
 
   .ARM.attributes 0 : { *(.ARM.attributes) }
 }
+

@@ -49,7 +49,6 @@
 #include "pression.h"
 #include "pluviometre.h"
 #include "display_reg.h"
-#include "meteo_reg.h"
 
 
 /* USER CODE END Includes */
@@ -84,7 +83,7 @@
 // Constante pour convertir les ticks en vitesse (2.4 km/h par tick/s)
 extern volatile float pressure_hPa;
 extern volatile hum_temp_t grandeur;
-volatile uint8_t Flag_tim4 = 0, Flag_tim7 = 0, Flag_btn = 0, Flag_tim2 = 0,Flag_tim5=0, action = 1,  screen_pile = 0;
+volatile uint8_t page = 0, Flag_tim4 = 0, Flag_tim7 = 0, Flag_btn = 0, Flag_tim2 = 0,Flag_tim5=0, action = 1,  screen_pile = 0;
 
 
 
@@ -166,9 +165,24 @@ int main(void)
 
   HAL_Init();
   BSP_TS_Init(480, 272);
-  //ephemere_screen();
-  //HAL_Delay(5000);
-  //BSP_LCD_Clear(LCD_COLOR_WHITE);
+  BSP_LCD_Init();
+  ephemere_screen();
+  HAL_Delay(5000);
+
+  /*Alumé juste le timer 3 pour gérer le touchscreen */
+  HAL_TIM_Base_Init(&htim3);
+  HAL_TIM_Base_Start_IT(&htim3);
+
+  //Page d'acceuil pour choisir le temps d'acquisition
+	BSP_LCD_LayerDefaultInit(LTDC_ACTIVE_LAYER, SDRAM_DEVICE_ADDR);
+	BSP_LCD_SetLayerVisible(LTDC_ACTIVE_LAYER, ENABLE);
+	BSP_LCD_SetFont(&LCD_DEFAULT_FONT);
+	BSP_LCD_SelectLayer(LTDC_ACTIVE_LAYER);
+	BSP_LCD_Clear(LCD_COLOR_WHITE);
+	Home();
+  while(page == 0); //Tant qu'on pas choisit le temps on reste à Home
+
+  BSP_LCD_Clear(LCD_COLOR_WHITE);
 
 
   if(start_sensor_hts221()== -1) printf("Device for sensor hts221 not found!");
@@ -186,26 +200,25 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   HAL_TIM_Base_Init(&htim5) ;
   HAL_TIM_Base_Init(&htim4) ;
-  HAL_TIM_Base_Init(&htim3) ;
   HAL_TIM_Base_Init(&htim2) ;
   HAL_TIM_Base_Init(&htim7) ;
 
 
   HAL_TIM_IC_Start_IT(&htim1, TIM_CHANNEL_1);
 
-  HAL_TIM_Base_Start_IT(&htim4);
-  HAL_TIM_Base_Start_IT(&htim5);
-  HAL_TIM_Base_Start_IT(&htim7);
-  HAL_TIM_Base_Start_IT(&htim3);
-  HAL_TIM_Base_Start_IT(&htim2);
+   HAL_TIM_Base_Init(&htim4) ; ;
+   HAL_TIM_Base_Init(&htim2) ;
 
-  HAL_NVIC_SetPriority(TIM2_IRQn, 2, 0);
-  HAL_NVIC_SetPriority(TIM4_IRQn, 1, 0);
-  HAL_NVIC_SetPriority(TIM7_IRQn, 3, 0);
-  //HAL_NVIC_SetPriority(TIM5_IRQn, 1, 0);
+   HAL_TIM_Base_Start_IT(&htim4);
+   HAL_TIM_Base_Start_IT(&htim7);
+   HAL_TIM_Base_Start_IT(&htim2);
+   HAL_TIM_Base_Start_IT(&htim5);
+
+     HAL_NVIC_SetPriority(TIM2_IRQn, 2, 0);
+     HAL_NVIC_SetPriority(TIM4_IRQn, 1, 0);
+     HAL_NVIC_SetPriority(TIM7_IRQn, 1, 0);
 
   HAL_GPIO_WritePin(green_led_GPIO_Port, green_led_Pin, GPIO_PIN_RESET);
-  int i =0;
   while (1)
   {// timer pour lattente avant mise en veille
 	  //Teste projet et avancement
