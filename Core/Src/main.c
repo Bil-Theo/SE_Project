@@ -93,7 +93,7 @@ extern volatile float pressure_hPa; //Variable contenant la pression ATMOS
 extern volatile hum_temp_t grandeur; //Struct définis dans humidity.h contenant Temp et hum
 
 //Variables utilise pour les interruptions
-volatile uint8_t  Flag_tim4 = 0, Flag_tim7 = 0, Flag_btn = 0, Flag_tim2 = 0,Flag_tim5=0;
+volatile uint8_t  action = 1, Flag_tim4 = 0, Flag_tim7 = 0, Flag_btn = 0, Flag_tim2 = 0,Flag_tim5=0;
 
 /*Variables pour gérer respectivement:
  * action : 1 -> état acquisition RGB Vert
@@ -104,14 +104,16 @@ volatile uint8_t  Flag_tim4 = 0, Flag_tim7 = 0, Flag_btn = 0, Flag_tim2 = 0,Flag
  *page = 1 : écran capteurs arduino
  *page = 2 : écran pluviometre */
 
-uint8_t  action = 1,  page = 0;
+uint8_t    page = 0;
 
 
 
 uint8_t workBuffer[_MAX_SS];
-float tab_temp[2000];// a remplacer par les valeur des capteurs
+float tab_temp[2000], tab_hum[2000], tab_pluie[2000], tab_speed[2000];// a remplacer par les valeur des capteurs
 extern volatile hum_temp_t grandeur;
 uint8_t ac = 0;
+extern volatile float qte_pluie, speed_kmh;
+
 
 
 extern TIM_HandleTypeDef htim4;
@@ -127,7 +129,7 @@ void SystemClock_Config(void);
 #define PUTCHAR_PROTOTYPE int __io_putchar(int ch)
 
 //Gère la carte SD
-void register_SD_CARD();
+void register_SD_CARD(float *array,float *array1,float *array2,float *array3, int size);
 void detect_pluie();
 
 //Remet le compteur du timer à 0, c'est pour gérer le timer qui éteint l'écran
@@ -245,15 +247,14 @@ int main(void)
    HAL_TIM_Base_Start_IT(&htim2);
    HAL_TIM_Base_Start_IT(&htim5);
 
-   HAL_NVIC_SetPriority(TIM2_IRQn, 2, 0);
-   HAL_NVIC_SetPriority(TIM4_IRQn, 1, 0);
+   HAL_NVIC_SetPriority(TIM2_IRQn, 1, 0);
+   HAL_NVIC_SetPriority(TIM4_IRQn, 2, 0);
    HAL_NVIC_SetPriority(TIM7_IRQn, 1, 0);
 
   //RGB Vert pour symboliser l'acquisiiton
   HAL_GPIO_WritePin(green_led_GPIO_Port, green_led_Pin, GPIO_PIN_RESET);
 
   //Routine de l'app
-
   while (1)
   {
 	  if(Flag_tim5 == 1){
@@ -262,24 +263,28 @@ int main(void)
 
 		  if(ac<=5000){//Si le tableau n'est pas encore pleine on remplit
 			  tab_temp[ac] = grandeur.temp;
+			  tab_hum[ac] = grandeur.hum;
+			  tab_pluie[ac] = qte_pluie ;
+			  tab_speed[ac] = speed_kmh;
 			  ac++;
 		  }
 		  else{//S'il est plein, on save et on remet le tableau au debut
-			  register_SD_CARD(tab_temp, ac);
+			  //register_SD_CARD(tab_temp, tab_hum, tab_pluie, tab_speed,  ac);
 			  ac = 0;
 		  }
 		  Flag_tim5 = 0;
 	  }
-	  else if(Flag_tim2 == 1){ // Eteindre l'écran quand cette interruption est lévée
+	  else if(Flag_tim4 == 1){ // Eteindre l'écran quand cette interruption est lévée
 		  BSP_LCD_DisplayOff();
 		  action = 0;
-		  Flag_tim2 =  0;
+
+		  Flag_tim4 =  0;
 	  }
-	  else if(Flag_tim4 == 1){
+	  else if(Flag_tim2 == 1){
 		  //Enregistrer toutes les 5min dans la carte SD
 
-		  register_SD_CARD(tab_temp, ac);
-		  Flag_tim4 = 0;
+		  register_SD_CARD(tab_temp, tab_hum, tab_pluie, tab_speed,  ac);
+		  Flag_tim2 = 0;
 		  //On remet le tableau vide pour remplir
 		  ac = 0;
 	  }
@@ -392,7 +397,7 @@ void start_again_timer(TIM_HandleTypeDef htim){
 	__HAL_TIM_SET_COUNTER(&htim2, 0);
 	HAL_TIM_Base_Start(&htim2);
 }
-void register_SD_CARD(float *array, int size) {
+void register_SD_CARD(float *array,float *array1,float *array2,float *array3, int size) {
     /*##-1- Link the micro SD disk I/O driver ##################################*/
     // if(FATFS_LinkDriver(&SD_Driver, SDPath) == 0)
     // {
@@ -406,31 +411,25 @@ void register_SD_CARD(float *array, int size) {
         /* WARNING: Formatting the uSD card will delete all content on the device */
     	printf("1er reussi\r\n");
         if (f_mkfs((TCHAR const *)SDPath, FM_ANY, 0, workBuffer, sizeof(workBuffer)) != FR_OK) {
-            printf("Formatting failed\n");
             /* FatFs Format Error */
             Error_Handler();
         } else {
-        	printf("2e reussi\r\n");
             /*##-4- Create and Open a new text file object with write access #####*/
-            if (f_open(&SDFile, "yala.csv", FA_OPEN_APPEND | FA_WRITE) != FR_OK) {
-                printf("File opening for writing failed\n");
+            if (f_open(&SDFile, "data.csv", FA_OPEN_ALWAYS | FA_WRITE) != FR_OK) {
                 /* 'test.csv' file Open for write Error */
                 Error_Handler();
             } else {
-            	printf("3e reussi\r\n");
                 /*##-5- Write array data along with RTC time to the CSV file #####*/
                 char buffer[100];
                 UINT byteswritten;
                 FRESULT res;
 
                 /* Write CSV header */
-                snprintf(buffer, sizeof(buffer), "Year/Month/Day;Hour:Minute:Second;Value\n");
+                snprintf(buffer, sizeof(buffer), "Year/Month/Day;Hour:Minute:Second;Temp;Hum;Pluie;Speed\n");
                 res = f_write(&SDFile, buffer, strlen(buffer), (void *)&byteswritten);
                 if ((byteswritten == 0) || (res != FR_OK)) {
-                    printf("Error writing header to file\n");
                     Error_Handler();
                 }
-                printf("4e reussi\r\n");
                 for (int i = 0; i < size; i++) {
                     /* Fetch RTC time */
                     RTC_TimeTypeDef sTime;
@@ -440,13 +439,12 @@ void register_SD_CARD(float *array, int size) {
                     HAL_RTC_GetDate(&hrtc, &sDate, RTC_FORMAT_BIN);
 
                     /* Format data into CSV row */
-                    snprintf(buffer, sizeof(buffer), "%04d/%02d/%02d;%02d:%02d:%02d;%d\n",
-                             2000 + sDate.Year, sDate.Month, sDate.Date, sTime.Hours, sTime.Minutes, sTime.Seconds, array[i]);
+                    snprintf(buffer, sizeof(buffer), "%04d/%02d/%02d;%02d:%02d:%02d;%f;%f;%f;%f\n",
+                             2000 + sDate.Year, sDate.Month, sDate.Date, sTime.Hours, sTime.Minutes, sTime.Seconds, array[i], array1[i], array2[i], array3[i]);
 
                     res = f_write(&SDFile, buffer, strlen(buffer), (void *)&byteswritten);
 
                     if ((byteswritten == 0) || (res != FR_OK)) {
-                        printf("Error writing to file\n");
                         /* 'test.csv' file Write or EOF Error */
                         Error_Handler();
                         break;
@@ -455,8 +453,6 @@ void register_SD_CARD(float *array, int size) {
 
                 /*##-6- Close the open text file #################################*/
                 f_close(&SDFile);
-
-                printf("Data written to CSV successfully\n");
             }
         }
     }

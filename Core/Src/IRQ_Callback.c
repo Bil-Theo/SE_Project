@@ -8,7 +8,7 @@
 
 #include "stm32f7xx_hal.h"
 
-extern volatile uint8_t Flag_tim4, Flag_tim7, Flag_btn, Flag_tim2,Flag_tim5,  page;
+extern volatile uint8_t Flag_tim4, Flag_tim7, Flag_btn, Flag_tim2,Flag_tim5,  page, action;
 extern volatile uint32_t interrupt_count;
 extern float tick_count;
 //Fonctions définis ailleurs et utilisées
@@ -21,7 +21,12 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
     /* Prevent unused argument(s) compilation warning */
     UNUSED(htim);
-    Flag_tim4 = (htim->Instance == TIM4);
+    if(htim->Instance == TIM4){
+    	BSP_LCD_DisplayOff();
+    	action = 0;
+    	Flag_tim4 =  0;
+
+    }
     Flag_tim7 = (htim->Instance == TIM7);
     Flag_tim2 = (htim->Instance == TIM2);
     //////// timer générale de temps d'acquisitions ici 5s
