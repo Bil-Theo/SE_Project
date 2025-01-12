@@ -32,6 +32,7 @@
 
 void detect_pluie();
 void Get_Wind_Speed();
-
+ char* getWindDirection(float voltage);
+void Read_ADC2_Channel1();
 
 #endif /* TEMPLATES_SENSORS_PLUVIOMETRE_H_ */

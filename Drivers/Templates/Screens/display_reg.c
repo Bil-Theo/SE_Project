@@ -31,9 +31,9 @@ extern volatile float pressure_hPa;
 extern volatile float qte_pluie, speed_kmh;
 extern float tick_count;
 extern volatile hum_temp_t grandeur;
-extern volatile uint16_t screen_pile;
 static int cmpt = 0;
 extern volatile uint8_t page;
+extern char *direction;
 extern TIM_HandleTypeDef htim5;
 
 
@@ -41,6 +41,8 @@ extern TIM_HandleTypeDef htim5;
 
 void show_sensors(){
 
+	/*Acquisitonne les données de la carte arduino et les affiches sur l'écran
+	 * */
 	  sensors_screen();
 	  get_values_pressure_sensor_lps22hh();
 	  get_grandeur_values_sensor_hts221();
@@ -60,11 +62,12 @@ void show_sensors(){
 }
 
 void show_rain(){
-
+	  /*Acquisitonne les données du pluviometre et les affiches sur l'écran
+	  	 * */
 	  raie_screen();
 	  Get_Wind_Speed();
 	  detect_pluie();
-
+	  Read_ADC2_Channel1();
 
 	   snprintf((char *)tx_buffer, sizeof(tx_buffer), "%6.2f", qte_pluie);
 	   setDrawText(65, 45, (char *)tx_buffer);
@@ -72,7 +75,7 @@ void show_rain(){
 	   snprintf((char *)tx_buffer, sizeof(tx_buffer), "%3.2f[km/h]", speed_kmh);
 	   setDrawText(110 + BLOCK_WIDTH + BLOCK_PADDING, 45, (char *)tx_buffer);
 
-	   snprintf((char *)tx_buffer, sizeof(tx_buffer),"East");
+	   snprintf((char *)tx_buffer, sizeof(tx_buffer),"%c", direction);
 	   setDrawText(200, 65 + BLOCK_HEIGHT + BLOCK_PADDING, (char *)tx_buffer);
 }
 
@@ -245,25 +248,27 @@ void TouchScreen(){
 	            }
 	            else{
 
-		            /*clic button stocker*/
+		            /*clic button stocker
 		            if ((ts.touchX[0] >= 45 && ts.touchX[0] <= 80 + 30)
 		            	            		&& (ts.touchY[0] >= 190 && ts.touchY[0]<= 260)){
 
 		            	//register_SD_CARD(staticArray, 10);
 
-		            }
+		            }*/
+
 		            if ((ts.touchX[0] >= 380 && ts.touchX[0] <= 440)
 		            		&& (ts.touchY[0] >= 145 && ts.touchY[0]<= 250)) {
 		                //cmpt++;
 		                //printf("Touche ecran ici %d \r\n", cmpt);
 		                //show_rain();
-		            	if(screen_pile == 0){
+		            	if(page == 1){
 		            		show_rain();
-		            	    screen_pile = 1;
+		            	    page = 2;
 		            	}
-		            	else{
+		            	else if(page == 2){
 		            		show_sensors();
-		            	    screen_pile = 0;
+		            	    page = 1;
+
 		            	}
 
 		            }

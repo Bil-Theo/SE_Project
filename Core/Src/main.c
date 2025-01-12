@@ -93,7 +93,7 @@ extern volatile float pressure_hPa; //Variable contenant la pression ATMOS
 extern volatile hum_temp_t grandeur; //Struct définis dans humidity.h contenant Temp et hum
 
 //Variables utilise pour les interruptions
-volatile uint8_t page = 0, Flag_tim4 = 0, Flag_tim7 = 0, Flag_btn = 0, Flag_tim2 = 0,Flag_tim5=0;
+volatile uint8_t  Flag_tim4 = 0, Flag_tim7 = 0, Flag_btn = 0, Flag_tim2 = 0,Flag_tim5=0;
 
 /*Variables pour gérer respectivement:
  * action : 1 -> état acquisition RGB Vert
@@ -104,12 +104,14 @@ volatile uint8_t page = 0, Flag_tim4 = 0, Flag_tim7 = 0, Flag_btn = 0, Flag_tim2
  *page = 1 : écran capteurs arduino
  *page = 2 : écran pluviometre */
 
-uint8_t  action = 1,  screen_pile = 0;
+uint8_t  action = 1,  page = 0;
 
 
 
 uint8_t workBuffer[_MAX_SS];
-int data[] = {10, 20, 30, 40, 50, 47, 511, 987654321, 2.0};// a remplacer par les valeur des capteurs
+float tab_temp[2000];// a remplacer par les valeur des capteurs
+extern volatile hum_temp_t grandeur;
+uint8_t ac = 0;
 
 
 extern TIM_HandleTypeDef htim4;
@@ -185,6 +187,7 @@ int main(void)
   MX_TIM1_Init();
   MX_TIM7_Init();
   MX_TIM5_Init();
+  MX_ADC2_Init();
   /* USER CODE BEGIN 2 */
 
 
@@ -236,8 +239,6 @@ int main(void)
 
    HAL_TIM_IC_Start_IT(&htim1, TIM_CHANNEL_1);
 
-   HAL_TIM_Base_Init(&htim4) ; ;
-   HAL_TIM_Base_Init(&htim2) ;
 
    HAL_TIM_Base_Start_IT(&htim4);
    HAL_TIM_Base_Start_IT(&htim7);
@@ -252,15 +253,38 @@ int main(void)
   HAL_GPIO_WritePin(green_led_GPIO_Port, green_led_Pin, GPIO_PIN_RESET);
 
   //Routine de l'app
+
   while (1)
   {
-	  if(Flag_tim2 == 1){ // Eteindre l'écran quand cette interruption est lévée
+	  if(Flag_tim5 == 1){
+		  if(page == 1)show_sensors();
+		  else if(page == 2) show_rain();
+
+		  if(ac<=5000){//Si le tableau n'est pas encore pleine on remplit
+			  tab_temp[ac] = grandeur.temp;
+			  ac++;
+		  }
+		  else{//S'il est plein, on save et on remet le tableau au debut
+			  register_SD_CARD(tab_temp, ac);
+			  ac = 0;
+		  }
+		  Flag_tim5 = 0;
+	  }
+	  else if(Flag_tim2 == 1){ // Eteindre l'écran quand cette interruption est lévée
 		  BSP_LCD_DisplayOff();
 		  action = 0;
-
 		  Flag_tim2 =  0;
 	  }
+	  else if(Flag_tim4 == 1){
+		  //Enregistrer toutes les 5min dans la carte SD
+
+		  register_SD_CARD(tab_temp, ac);
+		  Flag_tim4 = 0;
+		  //On remet le tableau vide pour remplir
+		  ac = 0;
+	  }
 	  else if(Flag_tim7 == 1){
+		  //Vérifié l'action ou l'etat du STM pour choisir le RGB correspondent
 		  if(action){
 			  HAL_GPIO_WritePin(red_led_GPIO_Port, red_led_Pin, 0);
 			  HAL_GPIO_TogglePin(green_led_GPIO_Port, green_led_Pin);
@@ -272,12 +296,19 @@ int main(void)
 		  Flag_tim7 = 0;
 	  }
 	  else if(Flag_btn == 1){
+		  /*Quand appuis sur le button User, remettre
+		   * le compteur du timer 2 qui compte 30s pour l'écran à 0
+		   */
 		  start_again_timer(htim2);
+		  //Si on touche btn user, on reallume l'écran LCD
 		  BSP_LCD_DisplayOn();
+
+		  //On remet l'état en acquisiiton
 		  action = 1;
 		  Flag_btn = 0;
 	  }
 	  else{
+		  //Gestion des interruptions
 		  HAL_SuspendTick();
 		  HAL_PWR_EnterSLEEPMode(PWR_MAINREGULATOR_ON, PWR_SLEEPENTRY_WFE);
 		  HAL_ResumeTick();
@@ -356,12 +387,12 @@ PUTCHAR_PROTOTYPE
 
 
 void start_again_timer(TIM_HandleTypeDef htim){
-
+	//Fonction mis à 0 le compteur du timer
 	HAL_TIM_Base_Stop(&htim2);
 	__HAL_TIM_SET_COUNTER(&htim2, 0);
 	HAL_TIM_Base_Start(&htim2);
 }
-void register_SD_CARD(int *array, int size) {
+void register_SD_CARD(float *array, int size) {
     /*##-1- Link the micro SD disk I/O driver ##################################*/
     // if(FATFS_LinkDriver(&SD_Driver, SDPath) == 0)
     // {
@@ -381,7 +412,7 @@ void register_SD_CARD(int *array, int size) {
         } else {
         	printf("2e reussi\r\n");
             /*##-4- Create and Open a new text file object with write access #####*/
-            if (f_open(&SDFile, "yala.csv", FA_CREATE_ALWAYS | FA_WRITE) != FR_OK) {
+            if (f_open(&SDFile, "yala.csv", FA_OPEN_APPEND | FA_WRITE) != FR_OK) {
                 printf("File opening for writing failed\n");
                 /* 'test.csv' file Open for write Error */
                 Error_Handler();

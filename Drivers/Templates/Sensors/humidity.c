@@ -34,6 +34,8 @@ float linear_interpolation(lin_t *lin, int16_t x)
 volatile hum_temp_t grandeur;
 
 uint8_t start_sensor_hts221(){
+	//Cette fonction initialise le driver de capteurs temp & humidité
+
   dev_ctx.write_reg = platform_write;
   dev_ctx.read_reg = platform_read;
   //dev_ctx.mdelay = platform_delay;
@@ -66,6 +68,7 @@ uint8_t start_sensor_hts221(){
 }
 
 void get_grandeur_values_sensor_hts221(){
+	//Cette fonction recupère les données issus du capteurs temp-hum
 	hts221_reg_t reg;
     hts221_status_get(&dev_ctx, &reg.status_reg);
 
