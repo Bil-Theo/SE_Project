@@ -26,6 +26,7 @@ void show_sensors();
 void setDrawText(uint16_t x, uint16_t y, const char *value);
 void base_screen(char *title1, char *title2, char *title3);
 void ephemere_screen();
+void capteurs();
 void sensors_screen();
 void raie_screen();
 void DrawBlock(uint16_t x, uint16_t y, const char *title);

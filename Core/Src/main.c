@@ -80,10 +80,31 @@
 /* USER CODE BEGIN PV */
 /* Private variables ---------------------------------------------------------*/
 
-// Constante pour convertir les ticks en vitesse (2.4 km/h par tick/s)
-extern volatile float pressure_hPa;
-extern volatile hum_temp_t grandeur;
-volatile uint8_t page = 0, Flag_tim4 = 0, Flag_tim7 = 0, Flag_btn = 0, Flag_tim2 = 0,Flag_tim5=0, action = 1,  screen_pile = 0;
+/*
+ * -----------------------------------------------------------------------------
+ * Pour ce code on a fait des fichiers.h et fichiers.c pour ne pas
+ * surcharger notre main.c
+ * ------------------------------------------------------------------------------
+ * */
+
+
+
+extern volatile float pressure_hPa; //Variable contenant la pression ATMOS
+extern volatile hum_temp_t grandeur; //Struct définis dans humidity.h contenant Temp et hum
+
+//Variables utilise pour les interruptions
+volatile uint8_t page = 0, Flag_tim4 = 0, Flag_tim7 = 0, Flag_btn = 0, Flag_tim2 = 0,Flag_tim5=0;
+
+/*Variables pour gérer respectivement:
+ * action : 1 -> état acquisition RGB Vert
+ * action : 0 -> Etat ecran veille RGB Rouge
+ * action : -1 -> Etat save card SD RGB Bleu
+ *
+ *page = 0 : écran acceuil
+ *page = 1 : écran capteurs arduino
+ *page = 2 : écran pluviometre */
+
+uint8_t  action = 1,  screen_pile = 0;
 
 
 
@@ -102,10 +123,14 @@ extern TIM_HandleTypeDef htim2;
 void SystemClock_Config(void);
 /* USER CODE BEGIN PFP */
 #define PUTCHAR_PROTOTYPE int __io_putchar(int ch)
+
+//Gère la carte SD
 void register_SD_CARD();
 void detect_pluie();
-void stop_Mode();
+
+//Remet le compteur du timer à 0, c'est pour gérer le timer qui éteint l'écran
 void start_again_timer(TIM_HandleTypeDef htim);
+
 
 
 /* USER CODE END PFP */
@@ -164,14 +189,18 @@ int main(void)
 
 
   HAL_Init();
-  BSP_TS_Init(480, 272);
+
+  //On utilialise l'écran et le touchscreen
   BSP_LCD_Init();
+  BSP_TS_Init(480, 272);
+  //Ecran ephemère qui affiche juste le logo
   ephemere_screen();
   HAL_Delay(5000);
 
   /*Alumé juste le timer 3 pour gérer le touchscreen */
   HAL_TIM_Base_Init(&htim3);
   HAL_TIM_Base_Start_IT(&htim3);
+
 
   //Page d'acceuil pour choisir le temps d'acquisition
 	BSP_LCD_LayerDefaultInit(LTDC_ACTIVE_LAYER, SDRAM_DEVICE_ADDR);
@@ -188,6 +217,7 @@ int main(void)
   if(start_sensor_hts221()== -1) printf("Device for sensor hts221 not found!");
   if(start_sensor_lps22hh() == -1) printf("Device for sensor lps22hh not found!");
 
+   //Affiche page 1
     BSP_LCD_Init();
     BSP_LCD_LayerDefaultInit(LTDC_ACTIVE_LAYER, SDRAM_DEVICE_ADDR);
     BSP_LCD_SelectLayer(LTDC_ACTIVE_LAYER);
@@ -204,7 +234,7 @@ int main(void)
   HAL_TIM_Base_Init(&htim7) ;
 
 
-  HAL_TIM_IC_Start_IT(&htim1, TIM_CHANNEL_1);
+   HAL_TIM_IC_Start_IT(&htim1, TIM_CHANNEL_1);
 
    HAL_TIM_Base_Init(&htim4) ; ;
    HAL_TIM_Base_Init(&htim2) ;
@@ -218,11 +248,13 @@ int main(void)
      HAL_NVIC_SetPriority(TIM4_IRQn, 1, 0);
      HAL_NVIC_SetPriority(TIM7_IRQn, 1, 0);
 
+  //RGB Vert pour symboliser l'acquisiiton
   HAL_GPIO_WritePin(green_led_GPIO_Port, green_led_Pin, GPIO_PIN_RESET);
+
+  //Routine de l'app
   while (1)
-  {// timer pour lattente avant mise en veille
-	  //Teste projet et avancement
-	  if(Flag_tim2 == 1){
+  {
+	  if(Flag_tim2 == 1){ // Eteindre l'écran quand cette interruption est lévée
 		  BSP_LCD_DisplayOff();
 		  action = 0;
 
@@ -410,6 +442,8 @@ void stop_Mode(){
 	HAL_GPIO_WritePin(blue_led_GPIO_Port, blue_led_Pin, GPIO_PIN_RESET);
 	HAL_GPIO_WritePin(red_led_GPIO_Port, red_led_Pin, GPIO_PIN_RESET);
 }
+
+
 
 
 

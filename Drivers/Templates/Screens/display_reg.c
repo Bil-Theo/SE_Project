@@ -17,6 +17,7 @@
 #include "fond1.h"
 #include "pluviometre.h"
 #include "meteo_reg.h"
+#include "tim.h"
 
 #define BLOCK_WIDTH 180
 #define BLOCK_HEIGHT 80
@@ -33,7 +34,7 @@ extern volatile hum_temp_t grandeur;
 extern volatile uint16_t screen_pile;
 static int cmpt = 0;
 extern volatile uint8_t page;
-
+extern TIM_HandleTypeDef htim5;
 
 
 
@@ -183,8 +184,6 @@ void error(uint8_t * message) {
     BSP_LCD_DisplayStringAt(10, 50, message, LEFT_MODE);
 }
 
-
-
 void TouchScreen(){
 	    TS_StateTypeDef ts = {0};                  // Zero-initialize the current state to ensure no uninitialized data
 	    static TS_StateTypeDef prev_state = {0};
@@ -203,20 +202,44 @@ void TouchScreen(){
 	            	if ((ts.touchX[0] >= 30 && ts.touchX[0] <= 166) &&
 	            	    (ts.touchY[0] >= 160 && ts.touchY[0] <= 200))
 	            	{
-	            	    printf("You are pressng 5s\r\n");
+						 HAL_TIM_Base_Stop(&htim5);
+
+						// Mettre à jour le prescaler et l'autoreload
+						__HAL_TIM_SET_PRESCALER(&htim5, 9999);
+						__HAL_TIM_SET_AUTORELOAD(&htim5, 49999);
+
+						// Redémarrer le timer
+						HAL_TIM_Base_Start(&htim5);
 	            	    page = 1;
 	            	}
 	            	else if ((ts.touchX[0] >= 186 && ts.touchX[0] <= 300) &&
 	            		    (ts.touchY[0] >= 160 && ts.touchY[0] <= 200))
 	            		{
-	            		printf("You are pressng 10min\r\n");
-	            		page = 1;
+	            		 	 HAL_TIM_Base_Stop(&htim5);
+
+	            		    // Mettre à jour le prescaler et l'autoreload
+	            		    __HAL_TIM_SET_PRESCALER(&htim5, 9999);
+	            		    __HAL_TIM_SET_AUTORELOAD(&htim5, 5999999);
+
+	            		    // Redémarrer le timer
+	            		    HAL_TIM_Base_Start(&htim5);
+							page = 1;
 	            		}
 	            	else if ((ts.touchX[0] >= 320 && ts.touchX[0] <= 390) &&
 	            		    (ts.touchY[0] >= 160 && ts.touchY[0] <= 200))
 	            		{
-	            		printf("You are pressng 1h\r\n");
-	            		page = 1;
+							 HAL_TIM_Base_Stop(&htim5);
+
+							// Mettre à jour le prescaler et l'autoreload
+							__HAL_TIM_SET_PRESCALER(&htim5, 9999);
+							__HAL_TIM_SET_AUTORELOAD(&htim5, 35999999);
+
+							// Redémarrer le timer
+							HAL_TIM_Base_Start(&htim5);
+							htim5.Instance->PSC = 9999;
+							htim5.Instance->ARR = 35999999;
+
+							page = 1;
 	            		}
 
 	            }
@@ -225,8 +248,7 @@ void TouchScreen(){
 		            /*clic button stocker*/
 		            if ((ts.touchX[0] >= 45 && ts.touchX[0] <= 80 + 30)
 		            	            		&& (ts.touchY[0] >= 190 && ts.touchY[0]<= 260)){
-		            	cmpt++;
-		            	printf("Touche ecran ici %d \r\n", cmpt);
+
 		            	//register_SD_CARD(staticArray, 10);
 
 		            }
@@ -254,5 +276,3 @@ void TouchScreen(){
 	        is_touching = 0;
 	    }
 }
-
-
