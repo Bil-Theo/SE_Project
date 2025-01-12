@@ -258,7 +258,7 @@ int main(void)
 }
 
 /**
-  * @brief System Clock Configuration
+  * @brief System Clock Confi
   * @retval None
   */
 void SystemClock_Config(void)
