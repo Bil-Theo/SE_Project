@@ -245,9 +245,9 @@ int main(void)
    HAL_TIM_Base_Start_IT(&htim2);
    HAL_TIM_Base_Start_IT(&htim5);
 
-     HAL_NVIC_SetPriority(TIM2_IRQn, 2, 0);
-     HAL_NVIC_SetPriority(TIM4_IRQn, 1, 0);
-     HAL_NVIC_SetPriority(TIM7_IRQn, 1, 0);
+   HAL_NVIC_SetPriority(TIM2_IRQn, 2, 0);
+   HAL_NVIC_SetPriority(TIM4_IRQn, 1, 0);
+   HAL_NVIC_SetPriority(TIM7_IRQn, 1, 0);
 
   //RGB Vert pour symboliser l'acquisiiton
   HAL_GPIO_WritePin(green_led_GPIO_Port, green_led_Pin, GPIO_PIN_RESET);

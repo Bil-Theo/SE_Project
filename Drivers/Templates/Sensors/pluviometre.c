@@ -9,7 +9,7 @@
 #include <stdio.h>
 #include <string.h>
 
-volatile float qte_pluie = 0.0, speed_kmh = 0.0 ,voltage;
+volatile float qte_pluie = 0.0, speed_kmh = 0.0 ,voltage = 0.0;
 volatile uint32_t interrupt_count = 0;
 volatile float tick_count;
 volatile  char* direction;
@@ -43,15 +43,15 @@ void Get_Wind_Speed() {
     else if ((voltage >2.86) & (voltage <= 3.02)) return "SUD-EST";
     else if ((voltage > 2.66) & (voltage <= 2.86)) return "SUD";
     else if ((voltage > 1.8) & (voltage <= 2.0)) return "SUD-OUEST";
-    else return "Dir Inconnu";
+    else return "Inconnu";
 }
 
 void Read_ADC2_Channel1() {
     HAL_ADC_Start(&hadc2);
     if (HAL_ADC_PollForConversion(&hadc2, 1000) == HAL_OK) {
         uint32_t adcValue = HAL_ADC_GetValue(&hadc2);
-        float voltage = (adcValue/ 4095.0)*3.3;  // Conversion en volts
+        voltage = (adcValue/ 4095.0)*3.3;  // Conversion en volts
         HAL_ADC_Stop(&hadc2);
-        direction = getWindDirection(voltage);
     }
+    direction = getWindDirection(voltage);
 }

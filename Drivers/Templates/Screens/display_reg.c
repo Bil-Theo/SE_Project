@@ -69,13 +69,13 @@ void show_rain(){
 	  detect_pluie();
 	  Read_ADC2_Channel1();
 
-	   snprintf((char *)tx_buffer, sizeof(tx_buffer), "%6.2f", qte_pluie);
+	   snprintf((char *)tx_buffer, sizeof(tx_buffer), "%6.2f[mm]", qte_pluie);
 	   setDrawText(65, 45, (char *)tx_buffer);
 
 	   snprintf((char *)tx_buffer, sizeof(tx_buffer), "%3.2f[km/h]", speed_kmh);
 	   setDrawText(110 + BLOCK_WIDTH + BLOCK_PADDING, 45, (char *)tx_buffer);
 
-	   snprintf((char *)tx_buffer, sizeof(tx_buffer),"%c", direction);
+	   snprintf((char *)tx_buffer, sizeof(tx_buffer),"%s", direction);
 	   setDrawText(200, 65 + BLOCK_HEIGHT + BLOCK_PADDING, (char *)tx_buffer);
 }
 
@@ -113,7 +113,7 @@ void sensors_screen(){
 }
 
 void raie_screen(){
-	base_screen("Pluie", "Vent", "Transfert");
+	base_screen("Pluie", "Vent", "Direction");
     BSP_LCD_DrawBitmap(380, 145, (uint8_t*)btn_next_bmp);
 
 }
