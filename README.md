@@ -1,6 +1,6 @@
 # projet Station Métheo
 
-![Demo](presentation.gif)
+📄 [Voir le rapport du projet](./rapport.pdf)
 
 
 ## Introduction
