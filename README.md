@@ -1,6 +1,6 @@
 # projet Station Métheo
 
-![Demo](presentation.mov)
+![Demo](presentation.gif)
 
 
 ## Introduction
